@@ -1,7 +1,6 @@
 from node import Node
 from parse import parse
 #idk if im allowed to use this
-from collections import defaultdict
 import math
 
 
@@ -26,8 +25,35 @@ def mostCommonClass(examples, default):
     if currCount < countDict[key]:
       currCount = countDict[key]
       currKey = key
-
+    elif currCount == countDict[key]:
+      currKey = default
+      
   return [currKey, len(countDict) == 1]   # most common class was default
+
+
+# finds the most common attribute value for a given attribute
+def mostCommonAttributeValue(examples, default, attribute):
+  currCount = -1 
+  currKey = -1
+  total = 0 # total number of examples (used to tell if all examples are positive, negative, or a combination of both)
+  countDict = dict()
+
+  for d in examples:
+    if not d[attribute] == '?':
+      if d[attribute] in countDict:
+        countDict[d[attribute]] += 1
+      else:
+        countDict[d[attribute]] = 1
+
+#  if total == 0: 
+#    return [None, True]
+
+  for key in countDict.keys():
+    if currCount < countDict[key]:
+      currCount = countDict[key]
+      currKey = key
+
+  return currKey
 
 
 #goes through every attr in examples and returns lowest attr/ent combo
@@ -49,27 +75,16 @@ def informationGain(examples, attrs):
 
 #verified this worked by hand w tennis example
 def attributeEntropy(examples, attr):
-  #can prob optimize this for space but whatever. These count how many + and - for each attr types.
-  #posCounts = defaultdict(int)
-  #negCounts = defaultdict(int)
   valueClassCounts = dict()
   #set containing possible attribute types (for example attribute restaraunte type has:thai,bbq,italian...)
   attrTypes = set()
 
-  # detects if y/n (or other type of classification) besides 1 and 0
-  #cType = ""
-  #if examples[0]["Class"] != '1' and examples[0]["Class"] != '0':
-  #  cType = examples[0]["Class"]
-
-  #tot = 0
+  tot = 0
+  # Case for handling empty attributes
   for e in examples:
     attrRes = e[attr]
     if attrRes == '?':
       continue
-    #if e["Class"] == '1' or e["Class"] == cType:
-    #  posCounts[attrRes] += 1
-    #else:
-    #  negCounts[attrRes] += 1
 
     if attrRes not in valueClassCounts:
       valueClassCounts[attrRes] = dict()
@@ -79,22 +94,19 @@ def attributeEntropy(examples, attr):
 
     valueClassCounts[attrRes][e["Class"]] += 1
     attrTypes.add(attrRes)
-    #tot += 1
+    tot += 1
   
-  tot = len(examples)
+
   #actually doing the entropy calculation here
   ent = 0
   for t in attrTypes:
-    #n = posCounts[t] + negCounts[t]
     n = sum(valueClassCounts[t].values())
-    frac = n / tot
+    try:
+      frac = n / tot
+    except:
+      Exception()
 
     temp_ent = 0
-    #all are in the same class so 0 entropy
-    #if not posCounts[t] or not negCounts[t]:
-    #  continue
-    #ent += frac * (-1 * posCounts[t]/n * math.log2(posCounts[t]/n) + -1 * negCounts[t]/n * math.log2(negCounts[t]/n))
-
     for c in valueClassCounts[t].values():
       if c:
         temp_ent += (-c/n * math.log2(c/n))
@@ -114,10 +126,7 @@ def getAttributes(examples):
       atts.append(k)
   return atts
 
-
-
-
-
+# Implementation of the ID3 algorithm
 def ID3(examples, default, attributes = None):
   # create initial node
   t = Node()
@@ -136,7 +145,8 @@ def ID3(examples, default, attributes = None):
     return t
     
   Astar, ent, aTypes = informationGain(examples,attributes)
-  attributes.remove(Astar)
+  newAttributes = attributes[:]
+  newAttributes.remove(Astar)
   t.label = Astar
   t.ent = ent
   # iterate over attribute types
@@ -155,7 +165,9 @@ def ID3(examples, default, attributes = None):
       t.children[a] = leaf
     else: 
       # if more exist, recursively develop tree branches
-      t.children[a] = ID3(d_a, default, attributes)
+      t.children[a] = ID3(d_a, default, newAttributes)
+    mostCommonAtype = mostCommonAttributeValue(examples, default, Astar)
+  t.children['?'] = t.children[mostCommonAtype]
 
   return t
 
@@ -173,12 +185,30 @@ def prune(node, examples):
   Takes in a trained tree and a validation set of examples.  Prunes nodes in order
   to improve accuracy on the validation data; the precise pruning strategy is up to you.
   '''
+  # Critical Value Pruning
+
+def chiSquareHelper(observed, expected):
+  chiSquare = 0
+  
+  
 
 def test(node, examples):
   '''
   Takes in a trained tree and a test set of examples.  Returns the accuracy (fraction
   of examples the tree classifies correctly).
   '''
+  tot = 0
+  correct = 0
+  for e in examples:
+    c = e["Class"]
+    feature = dict((i, e[i]) for i in e if i != "Class")
+    ans = evaluate(node, feature)
+    if ans == c:
+      correct += 1
+    tot += 1
+  
+  return correct/tot
+    
 
 
 def evaluate(node, example):
@@ -189,9 +219,15 @@ def evaluate(node, example):
   #next level node
   while node.children:  # while the current node is not a leaf
     splitVal = example[node.label]
+    if splitVal not in node.children.keys():
+      splitVal = '?'
     node = node.children[splitVal]
 
-  return int(node.label)
+  # if can be casted to int, return int, otherwise return as string
+  try:
+    return int(node.label)
+  except:
+    return node.label 
 
 
 #testAttr, testEnt = informationGain(parse("HW1/tennis.data"),getAttributes(parse("HW1/tennis.data")))
