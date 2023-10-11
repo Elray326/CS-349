@@ -4,36 +4,45 @@ from parse import parse
 from collections import defaultdict
 import math
 
+
 # finds the most common class, and if the common class equals the total
-def mostCommonClass(examples):
-  neg = 0
-  pos = 0
-  total = 0
+def mostCommonClass(examples, default):
+  neg = 0 # total number of negative examples
+  pos = 0 # total number of positive examples
+  total = 0 # total number of examples (used to tell if all examples are positive, negative, or a combination of both)
+  otherClass = "" # the class in examples that is not default
+
   for d in examples:
     total += 1
-    if d["Class"] == '0':
-      neg += 1
-    else:
+    if d["Class"] == default: # treating default as positive
       pos += 1
-  # if empty, return empty node t
-  if total == 0:
+    else:
+      neg += 1
+      otherClass = d["Class"]
+
+  if total == 0: 
     return [None, True]
   if pos - neg >= 0:
-    return ['1', pos == total]
-  return ['0', neg == total]
+    return [str(default), pos == total]   # most common class was default
+  return [str(otherClass), neg == total]  # most common class was not default
+
+
 
 #goes through every attr in examples and returns lowest attr/ent combo
 def informationGain(examples, attrs):
   minEnt = 1
   bestAttr = ""
+  aTypes = None
   for a in attrs:
-    ent = attributeEntropy(examples, a)
+    ent, attrTypes = attributeEntropy(examples, a)
     if ent < minEnt:
       minEnt = ent
       bestAttr = a
+      aTypes = attrTypes
       
 
-  return bestAttr, minEnt
+  return bestAttr, minEnt, aTypes
+
 
 
 #verified this worked by hand w tennis example
@@ -44,12 +53,17 @@ def attributeEntropy(examples, attr):
   #set containing possible attribute types (for example attribute restaraunte type has:thai,bbq,italian...)
   attrTypes = set()
 
+  # detects if y/n (or other type of classification) besides 1 and 0
+  cType = ""
+  if examples[0]["Class"] != '1' or examples[0]["Class"] != '0':
+    cType = examples[0]["Class"]
+
   tot = 0
   for e in examples:
     attrRes = e[attr]
     if attrRes == '?':
       continue
-    if e["Class"] == '1':
+    if e["Class"] == '1' or e["Class"] == cType:
       posCounts[attrRes] += 1
     else:
       negCounts[attrRes] += 1
@@ -65,13 +79,11 @@ def attributeEntropy(examples, attr):
     if not posCounts[t] or not negCounts[t]:
       continue
     ent += frac * (-1 * posCounts[t]/n * math.log2(posCounts[t]/n) + -1 * negCounts[t]/n * math.log2(negCounts[t]/n))
-  return ent
-
-
-
-
+  return ent, attrTypes
   
 
+
+# gets all atributes
 def getAttributes(examples):
   if not examples:
     return []
@@ -82,22 +94,57 @@ def getAttributes(examples):
   return atts
 
 
-def ID3(examples, default):
+
+
+
+def ID3(examples, default, attributes = None):
   # create initial node
   t = Node()
+
   # find common class
-  t.label, result = mostCommonClass(examples)
-  if result is True:  # if all examples in D are positive or negative
+  t.label, result = mostCommonClass(examples, default)
+  if result is True:  # if all examples in D are positive or negative, or if attributes is empty
     return t
-  # continue with algorithm
-  else:
-    Astar = informationGain(examples,getAttributes(examples))
   
-  '''
-  Takes in an array of examples, and returns a tree (an instance of Node) 
-  trained on the examples.  Each example is a dictionary of attribute:value pairs,
-  and the target class variable is a special attribute with the name "Class".
-  Any missing attributes are denoted with a value of "?"
+  # checks if attributes list has already been created (this is only true if this is the first call of ID3())
+  if attributes == None:
+      attributes = getAttributes(examples) # only runs on initial function call
+      # populate attributes list on first call
+  
+  if attributes == []:
+    return t
+    
+  Astar, ent, aTypes = informationGain(examples,attributes)
+  newAttrs = attributes.remove(Astar)
+  t.label = Astar
+  t.ent = ent
+  # iterate over attribute types
+  for a in aTypes:
+    t.children[a] = None
+
+    d_a = []
+    for e in examples:
+      if e[Astar] == a:
+        d_a.append(e)
+
+    # if empty, return a leaf node
+    if len(d_a) == 0:
+      leaf = Node()
+      leaf.label  = mostCommonClass(examples,default)[0]
+      t.children[a] = leaf
+    else: 
+      # if more exist, recursively develop tree branches
+      t.children[a] = ID3(d_a, default, newAttrs)
+
+    return t
+
+
+  
+'''
+Takes in an array of examples, and returns a tree (an instance of Node) 
+trained on the examples.  Each example is a dictionary of attribute:value pairs,
+and the target class variable is a special attribute with the name "Class".
+Any missing attributes are denoted with a value of "?"
   '''
 
 def prune(node, examples):
@@ -118,8 +165,7 @@ def evaluate(node, example):
   Takes in a tree and one example.  Returns the Class value that the tree
   assigns to the example.
   '''
-testAttr, testEnt = informationGain(parse("HW1/tennis.data"),getAttributes(parse("HW1/tennis.data")))
-print(testAttr, testEnt)
+#testAttr, testEnt = informationGain(parse("HW1/tennis.data"),getAttributes(parse("HW1/tennis.data")))
 #print(parse("HW1/candy.data"))
-print(mostCommonClass(parse("HW1/tennis.data")))
-print(getAttributes(parse("HW1/candy.data")))
+
+
