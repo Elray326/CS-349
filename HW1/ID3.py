@@ -71,14 +71,10 @@ def informationGain(examples, attrs):
 
   return bestAttr, minEnt, aTypes
 
-
-
-#verified this worked by hand w tennis example
-def attributeEntropy(examples, attr):
+# calculates the count of each class for entropy and pruning functions
+def calculateClassCounts(examples, attr):
   valueClassCounts = dict()
-  #set containing possible attribute types (for example attribute restaraunte type has:thai,bbq,italian...)
   attrTypes = set()
-
   tot = 0
   # Case for handling empty attributes
   for e in examples:
@@ -95,7 +91,12 @@ def attributeEntropy(examples, attr):
     valueClassCounts[attrRes][e["Class"]] += 1
     attrTypes.add(attrRes)
     tot += 1
-  
+  return valueClassCounts, attrTypes, tot
+
+#verified this worked by hand w tennis example
+def attributeEntropy(examples, attr):
+
+  valueClassCounts, attrTypes, tot = calculateClassCounts(examples, attr)
 
   #actually doing the entropy calculation here
   ent = 0
@@ -188,6 +189,8 @@ def prune(node, examples):
   # Critical Value Pruning
   if node.label != None:
     return
+  
+  #observedFrequency = 
 
 def chiSquareHelper(observed, expected):
   chiSquare = 0
