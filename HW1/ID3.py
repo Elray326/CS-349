@@ -7,25 +7,27 @@ import math
 
 # finds the most common class, and if the common class equals the total
 def mostCommonClass(examples, default):
-  neg = 0 # total number of negative examples
-  pos = 0 # total number of positive examples
+  currCount = -1 
+  currKey = -1
   total = 0 # total number of examples (used to tell if all examples are positive, negative, or a combination of both)
-  otherClass = "" # the class in examples that is not default
+  countDict = dict()
 
   for d in examples:
     total += 1
-    if d["Class"] == default: # treating default as positive
-      pos += 1
+    if d["Class"] in countDict:
+      countDict[d["Class"]] += 1
     else:
-      neg += 1
-      otherClass = d["Class"]
+      countDict[d["Class"]] = 1
 
   if total == 0: 
     return [None, True]
-  if pos - neg >= 0:
-    return [str(default), pos == total]   # most common class was default
-  return [str(otherClass), neg == total]  # most common class was not default
 
+  for key in countDict.keys():
+    if currCount < countDict[key]:
+      currCount = countDict[key]
+      currKey = key
+
+  return [currKey, len(countDict) == 1]   # most common class was default
 
 
 #goes through every attr in examples and returns lowest attr/ent combo
@@ -48,37 +50,56 @@ def informationGain(examples, attrs):
 #verified this worked by hand w tennis example
 def attributeEntropy(examples, attr):
   #can prob optimize this for space but whatever. These count how many + and - for each attr types.
-  posCounts = defaultdict(int)
-  negCounts = defaultdict(int)
+  #posCounts = defaultdict(int)
+  #negCounts = defaultdict(int)
+  valueClassCounts = dict()
   #set containing possible attribute types (for example attribute restaraunte type has:thai,bbq,italian...)
   attrTypes = set()
 
   # detects if y/n (or other type of classification) besides 1 and 0
-  cType = ""
-  if examples[0]["Class"] != '1' or examples[0]["Class"] != '0':
-    cType = examples[0]["Class"]
+  #cType = ""
+  #if examples[0]["Class"] != '1' and examples[0]["Class"] != '0':
+  #  cType = examples[0]["Class"]
 
-  tot = 0
+  #tot = 0
   for e in examples:
     attrRes = e[attr]
     if attrRes == '?':
       continue
-    if e["Class"] == '1' or e["Class"] == cType:
-      posCounts[attrRes] += 1
-    else:
-      negCounts[attrRes] += 1
+    #if e["Class"] == '1' or e["Class"] == cType:
+    #  posCounts[attrRes] += 1
+    #else:
+    #  negCounts[attrRes] += 1
+
+    if attrRes not in valueClassCounts:
+      valueClassCounts[attrRes] = dict()
+
+    if e["Class"] not in valueClassCounts[attrRes]:
+      valueClassCounts[attrRes][e["Class"]] = 0
+
+    valueClassCounts[attrRes][e["Class"]] += 1
     attrTypes.add(attrRes)
-    tot += 1
+    #tot += 1
+  
+  tot = len(examples)
   #actually doing the entropy calculation here
   ent = 0
   for t in attrTypes:
-    n = posCounts[t] + negCounts[t]
+    #n = posCounts[t] + negCounts[t]
+    n = sum(valueClassCounts[t].values())
     frac = n / tot
 
+    temp_ent = 0
     #all are in the same class so 0 entropy
-    if not posCounts[t] or not negCounts[t]:
-      continue
-    ent += frac * (-1 * posCounts[t]/n * math.log2(posCounts[t]/n) + -1 * negCounts[t]/n * math.log2(negCounts[t]/n))
+    #if not posCounts[t] or not negCounts[t]:
+    #  continue
+    #ent += frac * (-1 * posCounts[t]/n * math.log2(posCounts[t]/n) + -1 * negCounts[t]/n * math.log2(negCounts[t]/n))
+
+    for c in valueClassCounts[t].values():
+      if c:
+        temp_ent += (-c/n * math.log2(c/n))
+    ent += frac * temp_ent
+
   return ent, attrTypes
   
 
@@ -115,7 +136,7 @@ def ID3(examples, default, attributes = None):
     return t
     
   Astar, ent, aTypes = informationGain(examples,attributes)
-  newAttrs = attributes.remove(Astar)
+  attributes.remove(Astar)
   t.label = Astar
   t.ent = ent
   # iterate over attribute types
@@ -134,9 +155,9 @@ def ID3(examples, default, attributes = None):
       t.children[a] = leaf
     else: 
       # if more exist, recursively develop tree branches
-      t.children[a] = ID3(d_a, default, newAttrs)
+      t.children[a] = ID3(d_a, default, attributes)
 
-    return t
+  return t
 
 
   
@@ -164,7 +185,15 @@ def evaluate(node, example):
   '''
   Takes in a tree and one example.  Returns the Class value that the tree
   assigns to the example.
-  '''
+  '''  
+  #next level node
+  while node.children:  # while the current node is not a leaf
+    splitVal = example[node.label]
+    node = node.children[splitVal]
+
+  return int(node.label)
+
+
 #testAttr, testEnt = informationGain(parse("HW1/tennis.data"),getAttributes(parse("HW1/tennis.data")))
 #print(parse("HW1/candy.data"))
 
