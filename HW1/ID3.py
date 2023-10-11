@@ -186,9 +186,17 @@ def prune(node, examples):
   to improve accuracy on the validation data; the precise pruning strategy is up to you.
   '''
   # Critical Value Pruning
+  if node.label != None:
+    return
 
 def chiSquareHelper(observed, expected):
   chiSquare = 0
+  # calculate chi square using all observed and expected frequencies
+  for a in range(len(observed)):
+    currObserve = observed[a]
+    currExpect = expected[a]
+    chiSquare = chiSquare + (((currObserve - currExpect) ** 2) / expected)
+  return chiSquare
   
   
 
