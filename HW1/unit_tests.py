@@ -90,4 +90,8 @@ def testPruningOnHouseData(inFile):
   print(withPruning)
   print(withoutPruning)
   print("average with pruning",sum(withPruning)/len(withPruning)," without: ",sum(withoutPruning)/len(withoutPruning))
-testPruningOnHouseData("CS349\HW1\house_votes_84.data")
+
+testPruningOnHouseData("house_votes_84.data")
+testID3AndEvaluate()
+testID3AndTest()
+testPruning()

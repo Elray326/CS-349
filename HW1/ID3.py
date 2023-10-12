@@ -19,7 +19,7 @@ def mostCommonClass(examples, default):
       countDict[d["Class"]] = 1
 
   if total == 0: 
-    return [None, True]
+    return [None, True, 0]
 
   for key in countDict.keys():
     if currCount < countDict[key]:
@@ -28,7 +28,7 @@ def mostCommonClass(examples, default):
     elif currCount == countDict[key]:
       currKey = default
       
-  return [currKey, len(countDict) == 1]   # most common class was default
+  return [currKey, len(countDict) == 1, currCount]   # most common class was default
 
 
 # finds the most common attribute value for a given attribute
@@ -133,7 +133,7 @@ def ID3(examples, default, attributes = None):
   t = Node()
 
   # find common class
-  t.label, result = mostCommonClass(examples, default)
+  t.label, result, count = mostCommonClass(examples, default)
   if result is True:  # if all examples in D are positive or negative, or if attributes is empty
     return t
   
@@ -181,27 +181,81 @@ and the target class variable is a special attribute with the name "Class".
 Any missing attributes are denoted with a value of "?"
   '''
 
-def prune(node, examples):
+def prune(node, examples, attributes = None):
   '''
   Takes in a trained tree and a validation set of examples.  Prunes nodes in order
   to improve accuracy on the validation data; the precise pruning strategy is up to you.
   '''
   # Critical Value Pruning
-  if node.label != None:
-    return
+  if not node.children:  # If it's a leaf node
+      return node
   
-  #observedFrequency = 
+  if attributes == None:
+    attributes = getAttributes(examples)
 
+  Astar, _, aTypes = informationGain(examples, attributes)
+
+  observed = observedFrequencies(examples, Astar, aTypes)
+  expected = expectedFrequencies(examples, observed)
+
+  # For each primary key in observed make sure its in expected as well
+  for primaryKey in observed:
+      if primaryKey not in expected:
+          expected[primaryKey] = {}  # Initialize primary key in expected if it doesnt exist
+
+      for secondaryKey in observed[primaryKey]:
+          if secondaryKey not in expected[primaryKey]:
+              expected[primaryKey][secondaryKey] = 0  # Initialize with default value of 0 (check for divide by 0 error in chi square calc)
+
+  chiSquare = chiSquareHelper(observed, expected)
+  criticalValue = 3.841  # Chi Square Value for alpha=0.05 and df=1
+
+  if chiSquare < criticalValue:
+      node.children = {}  # prune all children
+      node.label = mostCommonClass(examples, 0)[0]
+      return node
+  
+  # If not pruned, recursively check the child nodes
+  for value in node.children.keys():
+      subset = [x for x in examples if x[Astar] == value]
+      prune(node.children[value], subset, attributes)
+  
+  return node
+
+
+# calculates chi square
 def chiSquareHelper(observed, expected):
   chiSquare = 0
   # calculate chi square using all observed and expected frequencies
-  for a in range(len(observed)):
-    currObserve = observed[a]
-    currExpect = expected[a]
-    chiSquare = chiSquare + (((currObserve - currExpect) ** 2) / expected)
+  for value in observed.keys():
+        for k in observed[value].keys():
+          if expected[value][k] == 0:
+            if observed[value][k] == 0:
+              continue  # Both observed and expected are 0; contribution to chi-squared is 0
+            else:
+              chiSquare += float('inf')  # Max significance
+          else:
+            chiSquare += ((observed[value][k] - expected[value][k]) ** 2 ) / expected[value][k]
   return chiSquare
-  
-  
+
+# calculates the observed frequencies for each attribute
+def observedFrequencies(examples, attribute, values):
+  observed = {}
+  for value in values:
+      subset = [x for x in examples if x[attribute] == value]
+      label, _, frequency = mostCommonClass(subset, None)
+      observed[value] = {label: frequency}
+  return observed
+
+# calculates the expected frequency
+def expectedFrequencies(examples, observed):
+    total = len(examples)
+    label, _, frequency = mostCommonClass(examples, 0)
+    
+    expected = {}
+    for value, count in observed.items():
+        expected[value] = {label: (frequency/total) * sum(count.values())}
+    return expected
 
 def test(node, examples):
   '''
