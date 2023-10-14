@@ -56,6 +56,29 @@ def mostCommonAttributeValue(examples, default, attribute):
   return currKey
 
 
+def postOrderPrune(tree, validation):
+  for n in tree.children.values():
+    postOrderPrune(n)
+  #non leaf node
+  if tree.children:
+    #currentRes is non pruned
+    currentRes = test(tree,validation)
+    tempChildren = tree.children.copy()
+    tempLabel = tree.label
+    #prune it and test
+    tree.children = {}
+    #stored a new node variable that stores most common class at tree level (make node a leaf node)
+    tree.label = tree.commonClass
+    newRes = test(tree,validation)
+
+    #if we dont improve, revert to original
+    if newRes < currentRes:
+      tree.children = tempChildren
+      tree.label = tempLabel
+
+  print(tree.label)
+
+
 #goes through every attr in examples and returns lowest attr/ent combo
 def informationGain(examples, attrs):
   minEnt = 1
@@ -131,9 +154,9 @@ def getAttributes(examples):
 def ID3(examples, default, attributes = None):
   # create initial node
   t = Node()
-
   # find common class
   t.label, result, count = mostCommonClass(examples, default)
+  t.commonClass = t.label
   if result is True:  # if all examples in D are positive or negative, or if attributes is empty
     return t
   
