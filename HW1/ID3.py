@@ -56,9 +56,9 @@ def mostCommonAttributeValue(examples, default, attribute):
   return currKey
 
 
-def postOrderPrune(tree, validation):
+def prune(tree, validation):
   for n in tree.children.values():
-    postOrderPrune(n)
+    prune(n, validation)
   #non leaf node
   if tree.children:
     #currentRes is non pruned
@@ -190,8 +190,13 @@ def ID3(examples, default, attributes = None):
     else: 
       # if more exist, recursively develop tree branches
       t.children[a] = ID3(d_a, default, newAttributes)
-    mostCommonAtype = mostCommonAttributeValue(examples, default, Astar)
-  t.children['?'] = t.children[mostCommonAtype]
+  mostCommonAtype = mostCommonAttributeValue(examples, default, Astar)
+  if mostCommonAtype in t.children.keys():
+    t.children['?'] = t.children[mostCommonAtype]
+  else:
+    newNode = Node()
+    newNode.label, result, count = mostCommonClass(examples,default)
+    t.children['?'] = newNode
 
   return t
 
@@ -204,46 +209,46 @@ and the target class variable is a special attribute with the name "Class".
 Any missing attributes are denoted with a value of "?"
   '''
 
-def prune(node, examples, attributes = None):
-  '''
-  Takes in a trained tree and a validation set of examples.  Prunes nodes in order
-  to improve accuracy on the validation data; the precise pruning strategy is up to you.
-  '''
-  # Critical Value Pruning
-  if not node.children:  # If it's a leaf node
-      return node
+# def prune(node, examples, attributes = None):
+#   '''
+#   Takes in a trained tree and a validation set of examples.  Prunes nodes in order
+#   to improve accuracy on the validation data; the precise pruning strategy is up to you.
+#   '''
+#   # Critical Value Pruning
+#   if not node.children:  # If it's a leaf node
+#       return node
   
-  if attributes == None:
-    attributes = getAttributes(examples)
+#   if attributes == None:
+#     attributes = getAttributes(examples)
 
-  Astar, _, aTypes = informationGain(examples, attributes)
+#   Astar, _, aTypes = informationGain(examples, attributes)
 
-  observed = observedFrequencies(examples, Astar, aTypes)
-  expected = expectedFrequencies(examples, observed)
+#   observed = observedFrequencies(examples, Astar, aTypes)
+#   expected = expectedFrequencies(examples, observed)
 
-  # For each primary key in observed make sure its in expected as well
-  for primaryKey in observed:
-      if primaryKey not in expected:
-          expected[primaryKey] = {}  # Initialize primary key in expected if it doesnt exist
+#   # For each primary key in observed make sure its in expected as well
+#   for primaryKey in observed:
+#       if primaryKey not in expected:
+#           expected[primaryKey] = {}  # Initialize primary key in expected if it doesnt exist
 
-      for secondaryKey in observed[primaryKey]:
-          if secondaryKey not in expected[primaryKey]:
-              expected[primaryKey][secondaryKey] = 0  # Initialize with default value of 0 (check for divide by 0 error in chi square calc)
+#       for secondaryKey in observed[primaryKey]:
+#           if secondaryKey not in expected[primaryKey]:
+#               expected[primaryKey][secondaryKey] = 0  # Initialize with default value of 0 (check for divide by 0 error in chi square calc)
 
-  chiSquare = chiSquareHelper(observed, expected)
-  criticalValue = 3.841  # Chi Square Value for alpha=0.05 and df=1
+#   chiSquare = chiSquareHelper(observed, expected)
+#   criticalValue = 3.841  # Chi Square Value for alpha=0.05 and df=1
 
-  if chiSquare < criticalValue:
-      node.children = {}  # prune all children
-      node.label = mostCommonClass(examples, 0)[0]
-      return node
+#   if chiSquare < criticalValue:
+#       node.children = {}  # prune all children
+#       node.label = mostCommonClass(examples, 0)[0]
+#       return node
   
-  # If not pruned, recursively check the child nodes
-  for value in node.children.keys():
-      subset = [x for x in examples if x[Astar] == value]
-      prune(node.children[value], subset, attributes)
+#   # If not pruned, recursively check the child nodes
+#   for value in node.children.keys():
+#       subset = [x for x in examples if x[Astar] == value]
+#       prune(node.children[value], subset, attributes)
   
-  return node
+#   return node
 
 
 # calculates chi square
