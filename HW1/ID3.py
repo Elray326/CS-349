@@ -76,7 +76,8 @@ def prune(tree, validation):
       tree.children = tempChildren
       tree.label = tempLabel
 
-  print(tree.label)
+  #print(tree.label)
+  return tree
 
 
 #goes through every attr in examples and returns lowest attr/ent combo
