@@ -5,7 +5,7 @@ from numpy.linalg import norm
 def euclidean(a,b):
     dist = 0
     for i in range(len(a)):
-        dist += (a[i] - b[i]) ** 2
+        dist += (int(a[i]) - int(b[i])) ** 2
     dist = dist ** 0.5
     return(dist)
 
@@ -26,8 +26,9 @@ print("Ours:",dist)
 
 # returns Cosine Similarity between vectors a dn b
 def cosim(a,b):
-    
-    dist = sum(a * b) / (vecSumSqrt(a) * vecSumSqrt(b))
+    intA = [int(x) for x in a]
+    intB = [int(x) for x in b]
+    dist = sum(intA * intB) / (vecSumSqrt(a) * vecSumSqrt(b))
 
     return(dist)
 
@@ -35,10 +36,11 @@ def cosim(a,b):
 def vecSumSqrt(vec):
     dist = 0
     for i in range(len(vec)):
-        dist += vec[i] ** 2
+        dist += int(vec[i]) ** 2
     return dist ** 0.5
 
 """
+# Cosine Similarity Test
 # define two lists or array
 A = np.array([2,1,2,3,2,9])
 B = np.array([3,4,2,4,5,5])
@@ -55,6 +57,35 @@ print("Cosine Similarity:", cosine)
 # metric is a string specifying either "euclidean" or "cosim".  
 # All hyper-parameters should be hard-coded in the algorithm.
 def knn(train,query,metric):
+    k = 20
+    labels = []
+    totalCount = 0
+    correct = 0
+    for j in range(len(query)):
+        distArr = []
+        countArray = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        for i in range(len(train)): #loop over the entire training set for each query example
+            currTrainNum = train[i][0]
+            if metric == 'euclidean':
+                # array with the number displayed in the training image and the distance
+                distArr.append([currTrainNum, euclidean(train[i][1], query[j][1])])
+            elif metric == 'cosim':
+                distArr.append([currTrainNum, cosim(train[i][1], query[j][1])])
+        
+        #sorts the array in order by distance
+        distArr.sort(key=lambda x: x[1])
+        # find the k lowest distances
+        for m in range(k):
+            trainNumber = distArr[m][0]
+            countArray[int(trainNumber)] += 1
+        # figure out which number has lowest distance associated with it and put it in labels with expected
+        totalCount += 1
+        if countArray.index(max(countArray)) == int(query[j][0]):
+            correct += 1
+        print([countArray.index(max(countArray)), query[j][0]])
+        labels.append([countArray.index(max(countArray)), query[j][0]])
+    # determine percent correct and return labels
+    print(correct / totalCount)
     return(labels)
 
 # returns a list of labels for the query dataset based upon observations in the train dataset. 
@@ -79,7 +110,6 @@ def read_data(file_name):
     return(data_set)
         
 def show(file_name,mode):
-    
     data_set = read_data(file_name)
     for obs in range(len(data_set)):
         for idx in range(784):
@@ -96,8 +126,10 @@ def show(file_name,mode):
         print(' ')
             
 def main():
-    show('valid.csv','pixels')
-    
+    #show('valid.csv','pixels')
+    # print(read_data('valid.csv')[0][1])
+    knn(read_data('train.csv'), read_data('valid.csv'), 'euclidean')
+    knn(read_data('train.csv'), read_data('valid.csv'), 'cosim')
+
 if __name__ == "__main__":
     main()
-#"""
