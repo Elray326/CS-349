@@ -1,5 +1,7 @@
 import numpy as np
 from numpy.linalg import norm
+from sklearn import metrics
+
 
 # returns Euclidean distance between vectors a dn b
 def euclidean(a,b):
@@ -86,6 +88,7 @@ def knn(train,query,metric):
         labels.append([countArray.index(max(countArray)), query[j][0]])
     # determine percent correct and return labels
     print(correct / totalCount)
+    confusion_matrix = metrics.confusion_matrix(labels, predicted)
     return(labels)
 
 # returns a list of labels for the query dataset based upon observations in the train dataset. 
@@ -104,8 +107,11 @@ def read_data(file_name):
             tokens = line.split(',')
             label = tokens[0]
             attribs = []
-            for i in range(784):
-                attribs.append(tokens[i+1])
+            #trimmed 100 out of each side
+            for i in range(100,684):
+                #don't add one out of every 4 pixels
+                if i % 4 != 0:
+                    attribs.append(tokens[i+1])
             data_set.append([label,attribs])
     return(data_set)
         
