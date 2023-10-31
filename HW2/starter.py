@@ -11,7 +11,7 @@ import random
 def euclidean(a,b):
     dist = 0
     for i in range(len(a)):
-        dist += (int(a[i]) - int(b[i])) ** 2
+        dist += (float(a[i]) - float(b[i])) ** 2
     dist = dist ** 0.5
     return(dist)
 
@@ -106,17 +106,92 @@ def knn(train,query,metric):
     plt.show()
     return(predicted)
 
+
+
 # returns a list of labels for the query dataset based upon observations in the train dataset. 
 # labels should be ignored in the training set
 # metric is a string specifying either "euclidean" or "cosim".  
 # All hyper-parameters should be hard-coded in the algorithm.
 def kmeans(train,query,metric):
+    
+    # initialize K means, each with nAttributes (initially 784, the number of pixels in each image) random values between 0 and 256 (the range of pixel values)
     k = 10
+    nAttributes = 784
     means = []
     for i in range(k):
         means.append([])
-        for j in range(784):
+        for j in range(nAttributes):
             means[i].append(random.randint(0,256))
+    
+    #scale down data
+    #train, means = pcaDataMeans(train, means)
+    nAttributes = len(means[0])
+
+    for hehexd in range(50):
+        oldMeans = means[:]
+
+        #calculate distance from each of the K means to every data point
+        classLabels = [0] * len(train)
+        distMatrix  = [[0] * k for i in range(len(train))]
+        for i in range(len(train)): 
+            for j in range(len(means)):
+                distMatrix[i][j] = euclidean(means[j],train[i][1])
+            #assigning index of closest mean to the point
+            idx = distMatrix[i].index(min(distMatrix[i]))
+            classLabels[i] = idx
+
+        meanCounts = [0] * k
+        meanSums = [[0] * nAttributes for i in range(k)]
+
+        for i in range(len(classLabels)):
+            mean = classLabels[i]
+            for j in range(len(train[i][1])):
+                #adding coordinate value to total coordinate value of mean
+                meanSums[mean][j] += float(train[i][1][j])      
+            meanCounts[mean] += 1
+        print(meanCounts)
+
+        zeroEle = False
+        for m in meanCounts:
+            if m == 0:
+                zeroEle = True
+        if zeroEle:
+            means = []
+            for i in range(k):
+                means.append([])
+                for j in range(nAttributes):
+                    means[i].append(random.randint(0,256))
+        else:
+            for i in range(k):
+                meanTotal = meanSums[i]
+                newMean = []
+                #print(means[i])
+                
+                #if meanCounts[i] != 0:
+                newMean = [n // meanCounts[i] for n in meanTotal]
+            #            print(newMean)
+                """
+                else:
+                    for j in range(nAttributes):
+                        newMean.append(random.randint(0,256))
+                """
+                means[i] = newMean
+                
+        #"""
+        total = 0
+        for i in range(len(means)):
+            for j in range(len(means[0])):
+                total += abs(means[i][j] - oldMeans[i][j])
+        print(hehexd, total)
+        #"""
+    
+
+
+
+        
+
+
+    #print(distMatrix)
     
     
     
@@ -170,6 +245,33 @@ def pcaData(train, valid):
     transformedTrain = [(label, pc) for label, pc in zip(train_labels, train_data_pca)]
     transformedVerify = [(label, pc) for label, pc in zip(verify_labels, verify_data_pca)]
     return transformedTrain, transformedVerify
+
+def pcaDataMeans(train, means):
+    # Process training and verification datasets
+    train_labels, train_data = processDataForPCA(train)
+    
+
+    # Optionally standardize the data
+    scaler = StandardScaler()
+    scaler.fit(train_data)  # Fit the scaler on the training data only
+    train_data_scaled = scaler.transform(train_data)
+    verify_data_scaled = scaler.transform(means)
+
+    # Fit PCA on the training data
+    pca = PCA(n_components=0.95)
+    # Fit PCA only on the training data to ensure proper dimensions
+    pca.fit(train_data_scaled)  
+
+    # Transform both training and verification data
+    train_data_pca = pca.transform(train_data_scaled)
+    verify_data_pca = pca.transform(verify_data_scaled)
+
+    # Recombine labels with the transformed image data
+    transformedTrain = [(label, pc) for label, pc in zip(train_labels, train_data_pca)]
+    
+    return transformedTrain, verify_data_pca
+
+
         
 def show(file_name,mode):
     data_set = read_data(file_name)
@@ -190,9 +292,9 @@ def show(file_name,mode):
 def main():
     #show('valid.csv','pixels')
     # print(read_data('valid.csv')[0][1])
-    knn(read_data('train.csv'), read_data('valid.csv'), 'euclidean')
-    knn(read_data('train.csv'), read_data('valid.csv'), 'cosim')
-    kmeans(read_data('train.csv'), read_data('valid.csv'), 'cosim')
+    # knn(read_data('train.csv'), read_data('valid.csv'), 'euclidean')
+    # knn(read_data('train.csv'), read_data('valid.csv'), 'cosim')
+    kmeans(read_data('train.csv'), read_data('valid.csv'), 'euclidean')
 
 if __name__ == "__main__":
     main()
