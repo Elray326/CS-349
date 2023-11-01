@@ -165,10 +165,10 @@ def kmeans(train,query,metric):
 
     
     
-    for i in range(k):
-        means.append([])
-        for j in range(nAttributes):
-            means[i].append(random.uniform(0, 256))
+    # for i in range(k):
+    #     means.append([])
+    #     for j in range(nAttributes):
+    #         means[i].append(random.uniform(0, 256))
         
     nAttributes = len(means[0])
     classLabels = [0] * len(train)
@@ -244,10 +244,13 @@ def kmeans(train,query,metric):
 
     correct = 0
 
+    actual = []
     predicted = []
 
     for i in range(len(train)):
         trainActual = int(train[i][0])
+        actual.append(trainActual)
+        
         guess = modes[classLabels[i]]
         predicted.append(guess)
         if trainActual == guess:
@@ -262,7 +265,7 @@ def kmeans(train,query,metric):
 
         
     
-    confusion_matrix = metrics.confusion_matrix(train[:][0], predicted)
+    confusion_matrix = metrics.confusion_matrix(actual, predicted)
     cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix = confusion_matrix, display_labels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
     cm_display.plot()
     plt.show()
