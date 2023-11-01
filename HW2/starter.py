@@ -113,25 +113,71 @@ def knn(train,query,metric):
 # metric is a string specifying either "euclidean" or "cosim".  
 # All hyper-parameters should be hard-coded in the algorithm.
 def kmeans(train,query,metric):
-    
-    # initialize K means, each with nAttributes (initially 784, the number of pixels in each image) random values between 0 and 256 (the range of pixel values)
     k = 10
-    nAttributes = 784
+
+
+    totalCount = 0
+
+    label_dist = [0] * k
+    for label in range(len(train)):
+        label_dist[int(train[label][0])] += 1
+    
+    print(label_dist)
+
+    #scale down data with PCA
+    #train, query = pcaData(train, query, 0.98)
+
+    # initialize K means, each with nAttributes (initially 784, the number of pixels in each image) random values between 0 and 256 (the range of pixel values)
+    nAttributes = len(train[0][1])
+    # currMax = -100
+    # currMin = 100
+    # prevMax = 100
+    # prevMin = -100
+    # # find range of max and mins
+    # for p in range(len(train[0][1])):
+    #     if max(int(train[p][1])) > currMax:
+    #         prevThirdMax = prevMax
+    #         prevMax = currMax
+    #         currMax = max(train[p][1])
+    #     if min(int(train[p][1])) < currMin:
+    #         prevThirdMin = prevMin
+    #         prevMin = currMin
+    #         currMin = min(train[p][1])
+
     means = []
+
+    trainIndex = 0
+    trainNums = len(train) // 10
+    for i in range(k):
+        s = [0] * len(train[0][1])
+        mean = []
+        for j in range(trainNums):
+            for x in range(len(train[i][1])):
+                #adding coordinate value to total coordinate value of mean
+                s[x] += float(train[trainIndex][1][x])   
+            trainIndex += 1
+        mean = [n / trainNums for n in s]
+        means.append(mean)
+        
+    print(means)        
+
+
+
+    
+    
     for i in range(k):
         means.append([])
         for j in range(nAttributes):
-            means[i].append(random.randint(0,256))
-    
-    #scale down data
-    #train, means = pcaDataMeans(train, means)
+            means[i].append(random.uniform(0, 256))
+        
     nAttributes = len(means[0])
+    classLabels = [0] * len(train)
 
-    for hehexd in range(50):
+    hehexd = 0
+    while totalCount < 5:
         oldMeans = means[:]
 
         #calculate distance from each of the K means to every data point
-        classLabels = [0] * len(train)
         distMatrix  = [[0] * k for i in range(len(train))]
         for i in range(len(train)): 
             for j in range(len(means)):
@@ -160,7 +206,7 @@ def kmeans(train,query,metric):
             for i in range(k):
                 means.append([])
                 for j in range(nAttributes):
-                    means[i].append(random.randint(0,256))
+                    means[i].append(random.uniform(0,256))
         else:
             for i in range(k):
                 meanTotal = meanSums[i]
@@ -168,7 +214,7 @@ def kmeans(train,query,metric):
                 #print(means[i])
                 
                 #if meanCounts[i] != 0:
-                newMean = [n // meanCounts[i] for n in meanTotal]
+                newMean = [n / meanCounts[i] for n in meanTotal]
             #            print(newMean)
                 """
                 else:
@@ -177,15 +223,49 @@ def kmeans(train,query,metric):
                 """
                 means[i] = newMean
                 
-        #"""
         total = 0
         for i in range(len(means)):
             for j in range(len(means[0])):
                 total += abs(means[i][j] - oldMeans[i][j])
         print(hehexd, total)
-        #"""
+        hehexd += 1
+        if total < 1:
+            totalCount += 1
+    
+    meanLabels =[[0] * k for i in range(k)]
+    for i in range(len(train)):
+        trainMean = classLabels[i] # this is not the actual final label yet
+        trainActual = int(train[i][0])
+        meanLabels[trainMean][trainActual] += 1
+    modes = [0] * k
+    for i in range(k):
+        mode = meanLabels[i].index(max(meanLabels[i]))
+        modes[i] = mode
+
+    correct = 0
+
+    predicted = []
+
+    for i in range(len(train)):
+        trainActual = int(train[i][0])
+        guess = modes[classLabels[i]]
+        predicted.append(guess)
+        if trainActual == guess:
+            correct += 1
+    
+    print("accuracy: ", correct/len(train))
+        
+
     
 
+    print("Modes:",modes)
+
+        
+    
+    confusion_matrix = metrics.confusion_matrix(train[:][0], predicted)
+    cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix = confusion_matrix, display_labels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+    cm_display.plot()
+    plt.show()
 
 
         
@@ -221,19 +301,21 @@ def processDataForPCA(dataset):
     
     return labels, image_data
 
-def pcaData(train, valid):
+def pcaData(train, valid, threshold=0.95):
     # Process training and verification datasets
     train_labels, train_data = processDataForPCA(train)
     verify_labels, verify_data = processDataForPCA(valid)
 
-    # Optionally standardize the data
+    
+    # Standardize the data
     scaler = StandardScaler()
-    scaler.fit(train_data)  # Fit the scaler on the training data only
+    # Fit the scaler on the training data only to ensure proper dimensions
+    scaler.fit(train_data)  
     train_data_scaled = scaler.transform(train_data)
     verify_data_scaled = scaler.transform(verify_data)
 
     # Fit PCA on the training data
-    pca = PCA(n_components=0.95)
+    pca = PCA(n_components=threshold)
     # Fit PCA only on the training data to ensure proper dimensions
     pca.fit(train_data_scaled)  
 
@@ -245,31 +327,6 @@ def pcaData(train, valid):
     transformedTrain = [(label, pc) for label, pc in zip(train_labels, train_data_pca)]
     transformedVerify = [(label, pc) for label, pc in zip(verify_labels, verify_data_pca)]
     return transformedTrain, transformedVerify
-
-def pcaDataMeans(train, means):
-    # Process training and verification datasets
-    train_labels, train_data = processDataForPCA(train)
-    
-
-    # Optionally standardize the data
-    scaler = StandardScaler()
-    scaler.fit(train_data)  # Fit the scaler on the training data only
-    train_data_scaled = scaler.transform(train_data)
-    verify_data_scaled = scaler.transform(means)
-
-    # Fit PCA on the training data
-    pca = PCA(n_components=0.95)
-    # Fit PCA only on the training data to ensure proper dimensions
-    pca.fit(train_data_scaled)  
-
-    # Transform both training and verification data
-    train_data_pca = pca.transform(train_data_scaled)
-    verify_data_pca = pca.transform(verify_data_scaled)
-
-    # Recombine labels with the transformed image data
-    transformedTrain = [(label, pc) for label, pc in zip(train_labels, train_data_pca)]
-    
-    return transformedTrain, verify_data_pca
 
 
         
