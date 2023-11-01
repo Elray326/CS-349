@@ -114,8 +114,6 @@ def knn(train,query,metric):
 # All hyper-parameters should be hard-coded in the algorithm.
 def kmeans(train,query,metric):
     k = 10
-
-
     totalCount = 0
 
     label_dist = [0] * k
@@ -161,10 +159,6 @@ def kmeans(train,query,metric):
         
     # print(means)        
 
-
-
-    
-    
     for i in range(k):
         means.append([])
         for j in range(nAttributes):
@@ -181,11 +175,16 @@ def kmeans(train,query,metric):
         distMatrix  = [[0] * k for i in range(len(train))]
         for i in range(len(train)): 
             for j in range(len(means)):
-                distMatrix[i][j] = euclidean(means[j],train[i][1])
-            #assigning index of closest mean to the point
-            idx = distMatrix[i].index(min(distMatrix[i]))
-            classLabels[i] = idx
-
+                if metric == "euclidean":
+                    distMatrix[i][j] = euclidean(means[j],train[i][1])
+                    #assigning index of closest mean to the point
+                    idx = distMatrix[i].index(min(distMatrix[i]))
+                elif metric == "cosim":
+                    distMatrix[i][j] = cosim(means[j], train[i][1])
+                    #assigning index of closest mean to the point
+                    idx = distMatrix[i].index(max(distMatrix[i]))
+                    
+        classLabels[i] = idx
         meanCounts = [0] * k
         meanSums = [[0] * nAttributes for i in range(k)]
 
@@ -354,7 +353,8 @@ def main():
     # print(read_data('valid.csv')[0][1])
     # knn(read_data('train.csv'), read_data('valid.csv'), 'euclidean')
     # knn(read_data('train.csv'), read_data('valid.csv'), 'cosim')
-    kmeans(read_data('train.csv'), read_data('valid.csv'), 'euclidean')
+    #kmeans(read_data('train.csv'), read_data('valid.csv'), 'euclidean')
+    kmeans(read_data('train.csv'), read_data('valid.csv'), 'cosim')
 
 if __name__ == "__main__":
     main()
