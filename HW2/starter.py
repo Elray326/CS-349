@@ -122,7 +122,7 @@ def kmeans(train,query,metric):
     for label in range(len(train)):
         label_dist[int(train[label][0])] += 1
     
-    print(label_dist)
+    print("Distribution of Number Labels:", label_dist)
 
     #scale down data with PCA
     #train, query = pcaData(train, query, 0.98)
@@ -146,35 +146,35 @@ def kmeans(train,query,metric):
 
     means = []
 
-    trainIndex = 0
-    trainNums = len(train) // 10
-    for i in range(k):
-        s = [0] * len(train[0][1])
-        mean = []
-        for j in range(trainNums):
-            for x in range(len(train[i][1])):
-                #adding coordinate value to total coordinate value of mean
-                s[x] += float(train[trainIndex][1][x])   
-            trainIndex += 1
-        mean = [n / trainNums for n in s]
-        means.append(mean)
-        
-    print(means)        
-
-
-
-    
-    
+    # trainIndex = 0
+    # trainNums = len(train) // 10
     # for i in range(k):
-    #     means.append([])
-    #     for j in range(nAttributes):
-    #         means[i].append(random.uniform(0, 256))
+    #     s = [0] * len(train[0][1])
+    #     mean = []
+    #     for j in range(trainNums):
+    #         for x in range(len(train[i][1])):
+    #             #adding coordinate value to total coordinate value of mean
+    #             s[x] += float(train[trainIndex][1][x])   
+    #         trainIndex += 1
+    #     mean = [n / trainNums for n in s]
+    #     means.append(mean)
+        
+    # print(means)        
+
+
+
+    
+    
+    for i in range(k):
+        means.append([])
+        for j in range(nAttributes):
+            means[i].append(random.uniform(0, 256))
         
     nAttributes = len(means[0])
     classLabels = [0] * len(train)
 
     hehexd = 0
-    while totalCount < 5:
+    while totalCount < 1:
         oldMeans = means[:]
 
         #calculate distance from each of the K means to every data point
@@ -250,7 +250,7 @@ def kmeans(train,query,metric):
     for i in range(len(train)):
         trainActual = int(train[i][0])
         actual.append(trainActual)
-        
+
         guess = modes[classLabels[i]]
         predicted.append(guess)
         if trainActual == guess:
