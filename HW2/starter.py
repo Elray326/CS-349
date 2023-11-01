@@ -144,25 +144,25 @@ def kmeans(train,query,metric):
 
     means = []
 
-    # trainIndex = 0
-    # trainNums = len(train) // 10
-    # for i in range(k):
-    #     s = [0] * len(train[0][1])
-    #     mean = []
-    #     for j in range(trainNums):
-    #         for x in range(len(train[i][1])):
-    #             #adding coordinate value to total coordinate value of mean
-    #             s[x] += float(train[trainIndex][1][x])   
-    #         trainIndex += 1
-    #     mean = [n / trainNums for n in s]
-    #     means.append(mean)
-        
-    # print(means)        
-
+    trainIndex = 0
+    trainNums = len(train) // 10
     for i in range(k):
-        means.append([])
-        for j in range(nAttributes):
-            means[i].append(random.uniform(0, 256))
+        s = [0] * len(train[0][1])
+        mean = []
+        for j in range(trainNums):
+            for x in range(len(train[i][1])):
+                #adding coordinate value to total coordinate value of mean
+                s[x] += float(train[trainIndex][1][x])   
+            trainIndex += 1
+        mean = [n / trainNums for n in s]
+        means.append(mean)
+        
+  #  print(means)        
+
+    # for i in range(k):
+    #     means.append([])
+    #     for j in range(nAttributes):
+    #         means[i].append(random.uniform(0, 256))
         
     nAttributes = len(means[0])
     classLabels = [0] * len(train)
@@ -178,13 +178,15 @@ def kmeans(train,query,metric):
                 if metric == "euclidean":
                     distMatrix[i][j] = euclidean(means[j],train[i][1])
                     #assigning index of closest mean to the point
-                    idx = distMatrix[i].index(min(distMatrix[i]))
                 elif metric == "cosim":
                     distMatrix[i][j] = cosim(means[j], train[i][1])
                     #assigning index of closest mean to the point
-                    idx = distMatrix[i].index(max(distMatrix[i]))
+            if metric == "euclidean":
+                idx = distMatrix[i].index(min(distMatrix[i]))
+            elif metric == "cosim":
+                idx = distMatrix[i].index(max(distMatrix[i]))
                     
-        classLabels[i] = idx
+            classLabels[i] = idx
         meanCounts = [0] * k
         meanSums = [[0] * nAttributes for i in range(k)]
 
@@ -353,7 +355,7 @@ def main():
     # print(read_data('valid.csv')[0][1])
     # knn(read_data('train.csv'), read_data('valid.csv'), 'euclidean')
     # knn(read_data('train.csv'), read_data('valid.csv'), 'cosim')
-    #kmeans(read_data('train.csv'), read_data('valid.csv'), 'euclidean')
+    # kmeans(read_data('train.csv'), read_data('valid.csv'), 'euclidean')
     kmeans(read_data('train.csv'), read_data('valid.csv'), 'cosim')
 
 if __name__ == "__main__":
