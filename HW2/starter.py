@@ -1,6 +1,5 @@
 # Spencer Rothfleisch, Louie Shapiro, Max Ward
 import numpy as np
-# from numpy.linalg import norm
 from sklearn import metrics
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
@@ -14,21 +13,6 @@ def euclidean(a,b):
         dist += (float(a[i]) - float(b[i])) ** 2
     dist = dist ** 0.5
     return(dist)
-
-""""
-# Euclidian distance test
-point1 = np.array((1, 2, 3, 11, 22, 3, 1, -155))
-point2 = np.array((1, 1, 1, 5, 3, 4, 10, 8))
- 
-# calculating Euclidean distance
-# using linalg.norm()
-dist_ref = np.linalg.norm(point1 - point2)
-dist = euclidean(point1, point2)
-
-# printing Euclidean distance
-print("Reference:",dist_ref)
-print("Ours:",dist)
-"""""
 
 # returns Cosine Similarity between vectors a dn b
 def cosim(a,b, knn = True):
@@ -46,20 +30,6 @@ def vecSumSqrt(vec):
     for i in range(len(vec)):
         dist += int(vec[i]) ** 2
     return dist ** 0.5
-
-""""
-# Cosine Similarity Test
-# define two lists or array
-A = np.array([2,1,2,3,2,9])
-B = np.array([3,4,2,4,5,5])
-
-
-# compute cosine similarity
-ref_cosine = np.dot(A,B)/(norm(A)*norm(B))
-cosine = cosim(A,B)
-print("Reference Cosine Similarity:", ref_cosine)
-print("Cosine Similarity:", cosine)
-"""""
 
 # returns a list of labels for the query dataset based upon labeled observations in the train dataset.
 # metric is a string specifying either "euclidean" or "cosim".  
@@ -130,12 +100,11 @@ def kmeans(train,query,metric):
     
     print("Distribution of Number Labels:", label_dist)
 
-    #scale down data with PCA
-    #train, query = pcaData(train, query, 0.98)
+    # Convert 0-255 to 1 and 0 to improve accuracy
     train = binaryConverter(train)
     query = binaryConverter(query)
 
-    # initialize K means, each with nAttributes (the number of pixels in each image after PCA)
+    # initialize K means, each with nAttributes (should be 784)
     nAttributes = len(train[0][1])
     means = []
 
@@ -153,13 +122,6 @@ def kmeans(train,query,metric):
         mean = [n / trainNums for n in s]
         binaryMean = [round(n) for n in mean]
         means.append(binaryMean)
-        
-  #  print(means)        
-
-    # for i in range(k):
-    #     means.append([])
-    #     for j in range(nAttributes):
-    #         means[i].append(random.uniform(0, 256))
         
     nAttributes = len(means[0])
     classLabels = [0] * len(train)
@@ -209,27 +171,18 @@ def kmeans(train,query,metric):
             for i in range(k):
                 meanTotal = meanSums[i]
                 newMean = []
-                #print(means[i])
-                
-                #if meanCounts[i] != 0:
+
+                # determining new means
                 if metric == "euclidean":
                     newMean = [n / meanCounts[i] for n in meanTotal]
                 else:
                     tMean = [n / meanCounts[i] for n in meanTotal]
-                    #newMean = [round(n) for n in tMean]
                     for t in tMean:
                         if t < .25:
                             newMean.append(0)
                         else:
                             newMean.append(1)
 
-
-            #            print(newMean)
-                """
-                else:
-                    for j in range(nAttributes):
-                        newMean.append(random.randint(0,256))
-                """
                 means[i] = newMean
                 
         total = 0
@@ -272,7 +225,6 @@ def kmeans(train,query,metric):
             idx = distMatrixQ[i].index(max(distMatrixQ[i]))
                 
         queryLabels[i] = idx
-    
 
     for i in range(len(query)):
         trainActual = int(query[i][0])
@@ -285,13 +237,7 @@ def kmeans(train,query,metric):
     
     accuracy = correct/len(query)
     print("accuracy: ", accuracy)
-        
-
-    
-
     print("Modes:",modes)
-
-        
     
     confusion_matrix = metrics.confusion_matrix(actual, predicted)
     cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix = confusion_matrix, display_labels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
@@ -300,14 +246,6 @@ def kmeans(train,query,metric):
     plt.title(title)
     plt.show()
 
-
-        
-
-
-    #print(distMatrix)
-    
-    
-    
     return(means)
 
 def read_data(file_name):
@@ -339,7 +277,6 @@ def pcaData(train, valid, threshold=0.95):
     train_labels, train_data = processDataForPCA(train)
     verify_labels, verify_data = processDataForPCA(valid)
 
-    
     # Standardize the data
     scaler = StandardScaler()
     # Fit the scaler on the training data only to ensure proper dimensions
@@ -363,7 +300,9 @@ def pcaData(train, valid, threshold=0.95):
 
 # converts the data set to be a hard coded 1 or 0 depending on threshold
 def binaryConverter(data):
-    borderValue = 100
+    # set border value
+    borderValue = 120
+    # iterate through data and convert to 1 or 0
     for i in range(len(data)):
         for j in range(len(data[0][1])):
             if int(data[i][1][j]) < borderValue:
@@ -389,11 +328,17 @@ def show(file_name,mode):
         print(' ')
             
 def main():
-    #show('valid.csv','pixels')
-    # print(read_data('valid.csv')[0][1])
-    #knn(read_data('train.csv'), read_data('valid.csv'), 'euclidean')
-    #knn(read_data('train.csv'), read_data('valid.csv'), 'cosim')
-    #kmeans(read_data('train.csv'), read_data('valid.csv'), 'euclidean')
+    # Euclidean KNN
+    print("Euclidean KNN")
+    knn(read_data('train.csv'), read_data('valid.csv'), 'euclidean')
+    # Cosim KNN
+    print("Cosim KNN")
+    knn(read_data('train.csv'), read_data('valid.csv'), 'cosim')
+    # Euclidean K-Means
+    print("Euclidean K-Means")
+    kmeans(read_data('train.csv'), read_data('valid.csv'), 'euclidean')
+    # Cosim K-Means
+    print("Cosim K-Means")
     kmeans(read_data('train.csv'), read_data('valid.csv'), 'cosim')
 
 if __name__ == "__main__":
