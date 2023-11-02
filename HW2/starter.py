@@ -36,7 +36,7 @@ def cosim(a,b, knn = True):
     if knn:
         dist = sum(int(x)*int(y) for x, y in zip(a, b)) /(vecSumSqrt(a) * vecSumSqrt(b))
     else:
-        dist = sum(int(x)*int(y) for x, y in zip(a, b)) /((vecSumSqrt(a) * vecSumSqrt(b)+ 1e-5))
+        dist = sum(int(x)*int(y) for x, y in zip(a, b)) /(1+(vecSumSqrt(a) * vecSumSqrt(b)))
 
     return(dist)
 
@@ -212,7 +212,18 @@ def kmeans(train,query,metric):
                 #print(means[i])
                 
                 #if meanCounts[i] != 0:
-                newMean = [n / meanCounts[i] for n in meanTotal]
+                if metric == "euclidean":
+                    newMean = [n / meanCounts[i] for n in meanTotal]
+                else:
+                    tMean = [n / meanCounts[i] for n in meanTotal]
+                    #newMean = [round(n) for n in tMean]
+                    for t in tMean:
+                        if t < .25:
+                            newMean.append(0)
+                        else:
+                            newMean.append(1)
+
+
             #            print(newMean)
                 """
                 else:
@@ -382,7 +393,7 @@ def main():
     # print(read_data('valid.csv')[0][1])
     #knn(read_data('train.csv'), read_data('valid.csv'), 'euclidean')
     #knn(read_data('train.csv'), read_data('valid.csv'), 'cosim')
-    kmeans(read_data('train.csv'), read_data('valid.csv'), 'euclidean')
+    #kmeans(read_data('train.csv'), read_data('valid.csv'), 'euclidean')
     kmeans(read_data('train.csv'), read_data('valid.csv'), 'cosim')
 
 if __name__ == "__main__":
