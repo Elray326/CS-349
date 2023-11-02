@@ -1,11 +1,11 @@
+# Spencer Rothfleisch, Louie Shapiro, Max Ward
 import numpy as np
-from numpy.linalg import norm
+# from numpy.linalg import norm
 from sklearn import metrics
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 import random
-
 
 # returns Euclidean distance between vectors a dn b
 def euclidean(a,b):
@@ -31,8 +31,12 @@ print("Ours:",dist)
 """""
 
 # returns Cosine Similarity between vectors a dn b
-def cosim(a,b):
-    dist = sum(int(x)*int(y) for x, y in zip(a, b)) / (vecSumSqrt(a) * vecSumSqrt(b))
+def cosim(a,b, knn = True):
+    dist = 0
+    if knn:
+        dist = sum(int(x)*int(y) for x, y in zip(a, b)) /(vecSumSqrt(a) * vecSumSqrt(b))
+    else:
+        dist = sum(int(x)*int(y) for x, y in zip(a, b)) /((vecSumSqrt(a) * vecSumSqrt(b)+ 1e-5))
 
     return(dist)
 
@@ -56,7 +60,6 @@ cosine = cosim(A,B)
 print("Reference Cosine Similarity:", ref_cosine)
 print("Cosine Similarity:", cosine)
 """""
-
 
 # returns a list of labels for the query dataset based upon labeled observations in the train dataset.
 # metric is a string specifying either "euclidean" or "cosim".  
@@ -98,11 +101,16 @@ def knn(train,query,metric):
         print([countArray.index(max(countArray)), query[j][0]])
         predicted.append(countArray.index(max(countArray)))
         actual.append(int(query[j][0]))
-    # determine percent correct and return labels
-    print(correct / totalCount)
+    # determine percent correct
+    accuracy = correct / totalCount
+    print(accuracy)
+
+    # generate and display confusion matrix
     confusion_matrix = metrics.confusion_matrix(actual, predicted)
     cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix = confusion_matrix, display_labels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
     cm_display.plot()
+    title = metric + " accuracy: " + str(accuracy)
+    plt.title(title)
     plt.show()
     return(predicted)
 
@@ -124,27 +132,15 @@ def kmeans(train,query,metric):
 
     #scale down data with PCA
     #train, query = pcaData(train, query, 0.98)
+    train = binaryConverter(train)
+    query = binaryConverter(query)
 
-    # initialize K means, each with nAttributes (initially 784, the number of pixels in each image) random values between 0 and 256 (the range of pixel values)
+    # initialize K means, each with nAttributes (the number of pixels in each image after PCA)
     nAttributes = len(train[0][1])
-    # currMax = -100
-    # currMin = 100
-    # prevMax = 100
-    # prevMin = -100
-    # # find range of max and mins
-    # for p in range(len(train[0][1])):
-    #     if max(int(train[p][1])) > currMax:
-    #         prevThirdMax = prevMax
-    #         prevMax = currMax
-    #         currMax = max(train[p][1])
-    #     if min(int(train[p][1])) < currMin:
-    #         prevThirdMin = prevMin
-    #         prevMin = currMin
-    #         currMin = min(train[p][1])
-
     means = []
 
     trainIndex = 0
+    random.shuffle(train)
     trainNums = len(train) // 10
     for i in range(k):
         s = [0] * len(train[0][1])
@@ -155,7 +151,8 @@ def kmeans(train,query,metric):
                 s[x] += float(train[trainIndex][1][x])   
             trainIndex += 1
         mean = [n / trainNums for n in s]
-        means.append(mean)
+        binaryMean = [round(n) for n in mean]
+        means.append(binaryMean)
         
   #  print(means)        
 
@@ -179,7 +176,7 @@ def kmeans(train,query,metric):
                     distMatrix[i][j] = euclidean(means[j],train[i][1])
                     #assigning index of closest mean to the point
                 elif metric == "cosim":
-                    distMatrix[i][j] = cosim(means[j], train[i][1])
+                    distMatrix[i][j] = cosim(means[j], train[i][1],False)
                     #assigning index of closest mean to the point
             if metric == "euclidean":
                 idx = distMatrix[i].index(min(distMatrix[i]))
@@ -230,7 +227,7 @@ def kmeans(train,query,metric):
                 total += abs(means[i][j] - oldMeans[i][j])
         print(hehexd, total)
         hehexd += 1
-        if total < 1:
+        if total < 5:
             totalCount += 1
     
     meanLabels =[[0] * k for i in range(k)]
@@ -248,16 +245,35 @@ def kmeans(train,query,metric):
     actual = []
     predicted = []
 
-    for i in range(len(train)):
-        trainActual = int(train[i][0])
+    queryLabels = [0] * len(query)
+    distMatrixQ  = [[0] * k for i in range(len(query))]
+    for i in range(len(query)): 
+        for j in range(len(means)):
+            if metric == "euclidean":
+                distMatrixQ[i][j] = euclidean(means[j],query[i][1])
+                #assigning index of closest mean to the point
+            elif metric == "cosim":
+                distMatrixQ[i][j] = cosim(means[j], query[i][1],False)
+                #assigning index of closest mean to the point
+        if metric == "euclidean":
+            idx = distMatrixQ[i].index(min(distMatrixQ[i]))
+        elif metric == "cosim":
+            idx = distMatrixQ[i].index(max(distMatrixQ[i]))
+                
+        queryLabels[i] = idx
+    
+
+    for i in range(len(query)):
+        trainActual = int(query[i][0])
         actual.append(trainActual)
 
-        guess = modes[classLabels[i]]
+        guess = modes[queryLabels[i]]
         predicted.append(guess)
         if trainActual == guess:
             correct += 1
     
-    print("accuracy: ", correct/len(train))
+    accuracy = correct/len(query)
+    print("accuracy: ", accuracy)
         
 
     
@@ -269,6 +285,8 @@ def kmeans(train,query,metric):
     confusion_matrix = metrics.confusion_matrix(actual, predicted)
     cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix = confusion_matrix, display_labels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
     cm_display.plot()
+    title = metric + " accuracy: " + str(accuracy)
+    plt.title(title)
     plt.show()
 
 
@@ -332,8 +350,17 @@ def pcaData(train, valid, threshold=0.95):
     transformedVerify = [(label, pc) for label, pc in zip(verify_labels, verify_data_pca)]
     return transformedTrain, transformedVerify
 
-
-        
+# converts the data set to be a hard coded 1 or 0 depending on threshold
+def binaryConverter(data):
+    borderValue = 100
+    for i in range(len(data)):
+        for j in range(len(data[0][1])):
+            if int(data[i][1][j]) < borderValue:
+                data[i][1][j] = 0
+            else:
+                data[i][1][j] = 1
+    return data
+            
 def show(file_name,mode):
     data_set = read_data(file_name)
     for obs in range(len(data_set)):
@@ -353,9 +380,9 @@ def show(file_name,mode):
 def main():
     #show('valid.csv','pixels')
     # print(read_data('valid.csv')[0][1])
-    # knn(read_data('train.csv'), read_data('valid.csv'), 'euclidean')
-    # knn(read_data('train.csv'), read_data('valid.csv'), 'cosim')
-    # kmeans(read_data('train.csv'), read_data('valid.csv'), 'euclidean')
+    #knn(read_data('train.csv'), read_data('valid.csv'), 'euclidean')
+    #knn(read_data('train.csv'), read_data('valid.csv'), 'cosim')
+    kmeans(read_data('train.csv'), read_data('valid.csv'), 'euclidean')
     kmeans(read_data('train.csv'), read_data('valid.csv'), 'cosim')
 
 if __name__ == "__main__":
