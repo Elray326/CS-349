@@ -6,6 +6,24 @@ import torch
 import torch.nn.functional as F
 import torch.nn as nn
 from torch.autograd import Variable
+from sklearn.preprocessing import MinMaxScaler
+
+class FeedForward(nn.Module):
+  def __init__(self, input_features, output_features, logits):
+    super(FeedForward, self).__init__()
+    self.linear1 = nn.Linear(input_features, output_features)
+    self.relu1 = nn.LeakyReLU()
+    self.linear2 = nn.Linear(output_features, logits)
+    self.relu2 = nn.LeakyReLU()
+    self.linear_out = nn.Linear(logits, 1)
+
+  def forward(self, x):
+    x = self.linear1(x)
+    x = self.relu1(x)
+    x = self.linear2(x)
+    x = self.relu2(x)
+    x = self.linear_out(x)
+    return x
 
 def read_mnist(file_name):
     
@@ -42,6 +60,7 @@ def read_insurability(file_name):
     
     count = 0
     data = []
+    
     with open(file_name,'rt') as f:
         for line in f:
             if count > 0:
@@ -58,6 +77,7 @@ def read_insurability(file_name):
                     else:
                         cls = 2
                     data.append([[cls],[x1,x2,x3]])
+                    
             count = count + 1
     return(data)
                
@@ -66,7 +86,18 @@ def classify_insurability():
     train = read_insurability('three_train.csv')
     valid = read_insurability('three_valid.csv')
     test = read_insurability('three_test.csv')
+
+    features = [x[1] for x in train]
+    sc = MinMaxScaler()
+    scaled_train = sc.fit_transform(features)
+    scaled_train = torch.tensor(scaled_train)
+    #print(scaled_train)
     
+    ff = FeedForward(len(scaled_train[0]),10,10)
+    #print(ff.forward(scaled_train))
+    print(ff.train())
+
+
     # insert code to train simple FFNN and produce evaluation metrics
     
 def classify_mnist():
@@ -74,7 +105,7 @@ def classify_mnist():
     train = read_mnist('mnist_train.csv')
     valid = read_mnist('mnist_valid.csv')
     test = read_mnist('mnist_test.csv')
-    show_mnist('mnist_test.csv','pixels')
+    #show_mnist('mnist_test.csv','pixels')
     
     # insert code to train a neural network with an architecture of your choice
     # (a FFNN is fine) and produce evaluation metrics
@@ -84,7 +115,7 @@ def classify_mnist_reg():
     train = read_mnist('mnist_train.csv')
     valid = read_mnist('mnist_valid.csv')
     test = read_mnist('mnist_test.csv')
-    show_mnist('mnist_test.csv','pixels')
+    #show_mnist('mnist_test.csv','pixels')
     
     # add a regularizer of your choice to classify_mnist()
     
@@ -96,13 +127,24 @@ def classify_insurability_manual():
     
     # reimplement classify_insurability() without using a PyTorch optimizer.
     # this part may be simpler without using a class for the FFNN
-    
+
+# activation function that converts linear results to probabilities
+def softmax(outputLayer):
+    probabilities = []
+    baseSum = 0
+    for feature in outputLayer:
+        baseSum += math.exp(feature)
+    for features in outputLayer:
+        probabilities.append(math.exp(features) / baseSum)
+    return probabilities
     
 def main():
     classify_insurability()
-    classify_mnist()
-    classify_mnist_reg()
-    classify_insurability_manual()
+    #classify_mnist()
+    #classify_mnist_reg()
+    #classify_insurability_manual()
     
 if __name__ == "__main__":
     main()
+
+
