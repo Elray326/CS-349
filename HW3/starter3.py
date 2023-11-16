@@ -100,12 +100,16 @@ def classify_insurability():
     test = read_insurability('three_test.csv')
     
     X = [x[1] for x in train]
+    X_test = [x[1] for x in test]
     y = [x[0][0] for x in train]
+    Y_test = [x[0][0] for  x in test]
     
     
     sc = MinMaxScaler()
     X = sc.fit_transform(X)
+    X_test = sc.fit_transform(X_test)
     X = torch.tensor(X, dtype=torch.float32, requires_grad=True)
+    X_test = torch.tensor(X_test, dtype=torch.float32, requires_grad=True)
 
     y = torch.tensor(y, dtype=torch.float32).reshape(-1, 1)
     ohe = OneHotEncoder(handle_unknown='ignore', sparse_output=False).fit(y)
@@ -118,7 +122,7 @@ def classify_insurability():
     loss = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
     
-    n_epochs = 20
+    n_epochs = 100
     batch_size = 5
     for epoch in range(n_epochs):
         for i in range(0,len(X), batch_size):
@@ -134,7 +138,21 @@ def classify_insurability():
             #print(list(model.parameters()))
         
         print("finished epoch: ", epoch, "loss value: ", l)
-    
+
+    n = 200
+    correct = 0
+    for i in range(n):
+        y_pred = model(X_test[i])
+        y_pred = softmax(y_pred)
+        y_val = y_pred.index(max(y_pred))
+        y_act = Y_test[i]
+        if y_val == y_act:
+            correct += 1
+    proportion = correct/n
+    print("% correct: ", proportion)
+
+        
+        
     #print(y_pred)
     
     #print(l)
@@ -176,15 +194,11 @@ def classify_insurability_manual():
 
 def softmax(outputLayer):
      probabilities = []
-     
-     for x in outputLayer:
-        probs = []
-        baseSum = 0
-        for feature in x:
-            baseSum += math.exp(feature)
-        for features in x:
-            probs.append(math.exp(features) / baseSum)
-        probabilities.append(probs)
+     baseSum = 0
+     for feature in outputLayer:
+        baseSum += math.exp(feature)
+     for features in outputLayer:
+        probabilities.append(math.exp(features) / baseSum)
      return probabilities
     
 def main():
