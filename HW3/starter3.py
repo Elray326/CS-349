@@ -6,24 +6,36 @@ import torch
 import torch.nn.functional as F
 import torch.nn as nn
 from torch.autograd import Variable
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
+import torch.optim as optim
+
 
 class FeedForward(nn.Module):
-  def __init__(self, input_features, output_features, logits):
-    super(FeedForward, self).__init__()
-    self.linear1 = nn.Linear(input_features, output_features)
-    self.relu1 = nn.LeakyReLU()
-    self.linear2 = nn.Linear(output_features, logits)
-    self.relu2 = nn.LeakyReLU()
-    self.linear_out = nn.Linear(logits, 1)
+  def __init__(self):
+    super().__init__()
+    self.hidden = nn.Linear(3, 8)
+    self.act = nn.ReLU()
+    self.output = nn.Linear(8, 3)
+# activation function that converts linear results to probabilities
+  def softmax(self, outputLayer):
+     probabilities = []
+     
+     for x in outputLayer:
+        probs = []
+        baseSum = 0
+        for feature in x:
+            baseSum += math.exp(feature)
+        for features in x:
+            probs.append(math.exp(features) / baseSum)
+        probabilities.append(probs)
+     return probabilities
 
   def forward(self, x):
-    x = self.linear1(x)
-    x = self.relu1(x)
-    x = self.linear2(x)
-    x = self.relu2(x)
-    x = self.linear_out(x)
+    x = self.act(self.hidden(x))
+    x = self.output(x)
+    #x = torch.tensor(x, dtype=torch.float32)
     return x
+    
 
 def read_mnist(file_name):
     
@@ -86,16 +98,50 @@ def classify_insurability():
     train = read_insurability('three_train.csv')
     valid = read_insurability('three_valid.csv')
     test = read_insurability('three_test.csv')
-
-    features = [x[1] for x in train]
-    sc = MinMaxScaler()
-    scaled_train = sc.fit_transform(features)
-    scaled_train = torch.tensor(scaled_train)
-    #print(scaled_train)
     
-    ff = FeedForward(len(scaled_train[0]),10,10)
+    X = [x[1] for x in train]
+    y = [x[0][0] for x in train]
+    
+    
+    sc = MinMaxScaler()
+    X = sc.fit_transform(X)
+    X = torch.tensor(X, dtype=torch.float32, requires_grad=True)
+
+    y = torch.tensor(y, dtype=torch.float32).reshape(-1, 1)
+    ohe = OneHotEncoder(handle_unknown='ignore', sparse_output=False).fit(y)
+    y = ohe.transform(y)
+    y = torch.tensor(y, dtype=torch.float32, requires_grad=True)
+    
+    #print(scaled_train)
+    model = FeedForward()
+    model.train()
+    loss = nn.CrossEntropyLoss()
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+    
+    n_epochs = 20
+    batch_size = 5
+    for epoch in range(n_epochs):
+        for i in range(0,len(X), batch_size):
+            Xbatch = X[i:i+batch_size]
+            y_pred = model(Xbatch)
+            #y_pred = torch.tensor(softmax(y_pred))
+            ybatch = y[i:i+batch_size]
+            l = loss(y_pred, ybatch)
+            #print(l)
+            optimizer.zero_grad()
+            l.backward()
+            optimizer.step()
+            #print(list(model.parameters()))
+        
+        print("finished epoch: ", epoch, "loss value: ", l)
+    
+    #print(y_pred)
+    
+    #print(l)
+    #print(y_pred)
+    
     #print(ff.forward(scaled_train))
-    print(ff.train())
+    
 
 
     # insert code to train simple FFNN and produce evaluation metrics
@@ -128,15 +174,18 @@ def classify_insurability_manual():
     # reimplement classify_insurability() without using a PyTorch optimizer.
     # this part may be simpler without using a class for the FFNN
 
-# activation function that converts linear results to probabilities
 def softmax(outputLayer):
-    probabilities = []
-    baseSum = 0
-    for feature in outputLayer:
-        baseSum += math.exp(feature)
-    for features in outputLayer:
-        probabilities.append(math.exp(features) / baseSum)
-    return probabilities
+     probabilities = []
+     
+     for x in outputLayer:
+        probs = []
+        baseSum = 0
+        for feature in x:
+            baseSum += math.exp(feature)
+        for features in x:
+            probs.append(math.exp(features) / baseSum)
+        probabilities.append(probs)
+     return probabilities
     
 def main():
     classify_insurability()
