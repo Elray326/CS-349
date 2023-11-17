@@ -9,6 +9,7 @@ from torch.autograd import Variable
 from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
 import torch.optim as optim
 import matplotlib.pyplot as plt
+from sklearn import metrics
 
 
 class FeedForward(nn.Module):
@@ -18,18 +19,7 @@ class FeedForward(nn.Module):
     self.act = nn.ReLU()
     self.output = nn.Linear(8, 3)
 # activation function that converts linear results to probabilities
-  def softmax(self, outputLayer):
-     probabilities = []
-     
-     for x in outputLayer:
-        probs = []
-        baseSum = 0
-        for feature in x:
-            baseSum += math.exp(feature)
-        for features in x:
-            probs.append(math.exp(features) / baseSum)
-        probabilities.append(probs)
-     return probabilities
+  
 
   def forward(self, x):
     x = self.act(self.hidden(x))
@@ -102,34 +92,43 @@ def classify_insurability():
     
     X = [x[1] for x in train]
     X_test = [x[1] for x in test]
+    X_valid = [x[1] for x in valid]
     y = [x[0][0] for x in train]
     Y_test = [x[0][0] for  x in test]
+    Y_valid = [x[0][0] for x in valid]
     
     
     sc = MinMaxScaler()
     X = sc.fit_transform(X)
     X_test = sc.fit_transform(X_test)
+    X_valid = sc.fit_transform(X_valid)
     X = torch.tensor(X, dtype=torch.float32, requires_grad=True)
     X_test = torch.tensor(X_test, dtype=torch.float32, requires_grad=True)
+    X_valid = torch.tensor(X_valid, dtype=torch.float32, requires_grad=True)
 
     y = torch.tensor(y, dtype=torch.float32).reshape(-1, 1)
+    Y_valid = torch.tensor(Y_valid, dtype=torch.float32).reshape(-1, 1)
     ohe = OneHotEncoder(handle_unknown='ignore', sparse_output=False).fit(y)
     y = ohe.transform(y)
+    Y_valid = ohe.transform(Y_valid)
     y = torch.tensor(y, dtype=torch.float32, requires_grad=True)
+    Y_valid = torch.tensor(Y_valid, dtype=torch.float32, requires_grad=True)
     
     #print(scaled_train)
     model = FeedForward()
-    model.train()
+    #model.train()
     loss = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
 
     # keep track of learning curves for training and validation data sets
     train_loss, train_accuracy, val_loss, val_accuracy = [], [], [], []
     
-    n_epochs = 100
+    n_epochs = 30
     batch_size = 5
+    n_batches = 0
+    
     for epoch in range(n_epochs):
-        # model.train()
+        model.train()
         total_loss, total_correct, total_samples = 0, 0, 0
         for i in range(0,len(X), batch_size):
             Xbatch = X[i:i+batch_size]
@@ -149,32 +148,63 @@ def classify_insurability():
             total_correct += (torch.argmax(y_pred, dim=1) == torch.argmax(ybatch, dim=1)).sum().item()
             total_samples += ybatch.size(0)
 
-            ### Need to add validation data
+        ### Need to add validation data
+        model.eval()
+        with torch.no_grad():
+            pred = model(X_valid)
+            val_loss.append(loss(pred, Y_valid).item())
+            val_accuracy.append((torch.argmax(Y_valid, dim=1) == torch.argmax(pred, dim=1)).sum().item() / pred.size(0))
         
+
         train_loss.append(total_loss / len(X))
         train_accuracy.append(total_correct / total_samples)
         print("finished epoch: ", epoch, "loss value: ", total_loss / len(X), " Percentage Correct: ", total_correct / total_samples)  
 
     # determine accuracy
-    n = 200
+    n = len(X_test)
     correct = 0
+    predicted = [0] * n # 1D array with the prediction for each example
     for i in range(n):
         y_pred = model(X_test[i])
         y_pred = softmax(y_pred)
-        y_val = y_pred.index(max(y_pred))
+        y_val_predicted = y_pred.index(max(y_pred))
         y_act = Y_test[i]
-        if y_val == y_act:
+        predicted[i] = y_val_predicted
+        if y_val_predicted == y_act:
             correct += 1
     proportion = correct/n
     print("% correct: ", proportion)
 
+
+    
+    actual = Y_test
+
+    # generate and display confusion matrix
+    confusion_matrix = metrics.confusion_matrix(actual, predicted)
+    cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix = confusion_matrix, display_labels = ["Bad", "Neutral", "Good"])
+    cm_display.plot()
+    title = "% Correct: " + str(proportion)
+    plt.title(title)
+    plt.show()
+
+
     plt.plot(train_loss)
     plt.ylabel("Loss")
     plt.xlabel("Epoch")
-    plt.title("Loss VS. Epochs")
+    plt.title("Loss VS. Epochs Training")
     plt.show()
     plt.plot(train_accuracy)
-    plt.title("Accuracy VS. Epochs")
+    plt.title("Accuracy VS. Epochs Training")
+    plt.ylabel("Accuracy")
+    plt.xlabel("Epoch")
+    plt.show()    
+    plt.plot(val_loss)
+    plt.ylabel("Loss")
+    plt.xlabel("Epoch")
+    plt.title("Loss VS. Epochs Validation")
+    plt.show()
+    plt.plot(val_accuracy)
+    plt.title("Accuracy VS. Epochs Validation")
     plt.ylabel("Accuracy")
     plt.xlabel("Epoch")
     plt.show()    
