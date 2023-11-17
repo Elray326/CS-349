@@ -8,6 +8,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
 import torch.optim as optim
+import matplotlib.pyplot as plt
 
 
 class FeedForward(nn.Module):
@@ -121,10 +122,15 @@ def classify_insurability():
     model.train()
     loss = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+
+    # keep track of learning curves for training and validation data sets
+    train_loss, train_accuracy, val_loss, val_accuracy = [], [], [], []
     
     n_epochs = 100
     batch_size = 5
     for epoch in range(n_epochs):
+        # model.train()
+        total_loss, total_correct, total_samples = 0, 0, 0
         for i in range(0,len(X), batch_size):
             Xbatch = X[i:i+batch_size]
             y_pred = model(Xbatch)
@@ -136,9 +142,20 @@ def classify_insurability():
             l.backward()
             optimizer.step()
             #print(list(model.parameters()))
-        
-        print("finished epoch: ", epoch, "loss value: ", l)
+            
+            # determine training loss
+            total_loss += l.item()
+            # determine training accuracy
+            total_correct += (torch.argmax(y_pred, dim=1) == torch.argmax(ybatch, dim=1)).sum().item()
+            total_samples += ybatch.size(0)
 
+            ### Need to add validation data
+        
+        train_loss.append(total_loss / len(X))
+        train_accuracy.append(total_correct / total_samples)
+        print("finished epoch: ", epoch, "loss value: ", total_loss / len(X), " Percentage Correct: ", total_correct / total_samples)  
+
+    # determine accuracy
     n = 200
     correct = 0
     for i in range(n):
@@ -151,8 +168,16 @@ def classify_insurability():
     proportion = correct/n
     print("% correct: ", proportion)
 
-        
-        
+    plt.plot(train_loss)
+    plt.ylabel("Loss")
+    plt.xlabel("Epoch")
+    plt.title("Loss VS. Epochs")
+    plt.show()
+    plt.plot(train_accuracy)
+    plt.title("Accuracy VS. Epochs")
+    plt.ylabel("Accuracy")
+    plt.xlabel("Epoch")
+    plt.show()    
     #print(y_pred)
     
     #print(l)
