@@ -323,6 +323,31 @@ def classify_mnist():
         train_accuracy.append(total_correct / total_samples)
         print("finished epoch: ", epoch, "loss value: ", total_loss / len(X), " Percentage Correct: ", total_correct / total_samples)  
     
+    # determine accuracy
+    n = len(X_test)
+    correct = 0
+    predicted = [0] * n # 1D array with the prediction for each example
+    for i in range(n):
+        y_pred = model(X_test[i])
+        y_pred = softmax(y_pred)
+        y_val_predicted = y_pred.index(max(y_pred))
+        y_act = Y_test[i]
+        predicted[i] = y_val_predicted
+        if y_val_predicted == y_act:
+            correct += 1
+    proportion = correct/n
+    print("% correct: ", proportion)
+
+    actual = Y_test
+
+    # generate and display confusion matrix
+    confusion_matrix = metrics.confusion_matrix(actual, predicted)
+    cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix = confusion_matrix, display_labels = [0,1,2,3,4,5,6,7,8,9])
+    cm_display.plot()
+    title = "% Correct: " + str(proportion)
+    plt.title(title)
+    plt.show()
+
     # generate learning curves
     plt.plot(train_loss)
     plt.ylabel("Loss")
@@ -375,8 +400,8 @@ def softmax(outputLayer):
      return probabilities
     
 def main():
-    classify_insurability()
-    #classify_mnist()
+    #classify_insurability()
+    classify_mnist()
     #classify_mnist_reg()
     #classify_insurability_manual()
     
