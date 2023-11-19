@@ -117,29 +117,7 @@ def classify_insurability():
     valid = read_insurability('three_valid.csv')
     test = read_insurability('three_test.csv')
     
-    X = [x[1] for x in train]
-    X_test = [x[1] for x in test]
-    X_valid = [x[1] for x in valid]
-    y = [x[0][0] for x in train]
-    Y_test = [x[0][0] for  x in test]
-    Y_valid = [x[0][0] for x in valid]
-    
-    
-    sc = MinMaxScaler()
-    X = sc.fit_transform(X)
-    X_test = sc.fit_transform(X_test)
-    X_valid = sc.fit_transform(X_valid)
-    X = torch.tensor(X, dtype=torch.float32, requires_grad=True)
-    X_test = torch.tensor(X_test, dtype=torch.float32, requires_grad=True)
-    X_valid = torch.tensor(X_valid, dtype=torch.float32, requires_grad=True)
-
-    y = torch.tensor(y, dtype=torch.float32).reshape(-1, 1)
-    Y_valid = torch.tensor(Y_valid, dtype=torch.float32).reshape(-1, 1)
-    ohe = OneHotEncoder(handle_unknown='ignore', sparse_output=False).fit(y)
-    y = ohe.transform(y)
-    Y_valid = ohe.transform(Y_valid)
-    y = torch.tensor(y, dtype=torch.float32, requires_grad=True)
-    Y_valid = torch.tensor(Y_valid, dtype=torch.float32, requires_grad=True)
+    X, X_test, X_valid, y, Y_test, Y_valid = format(train,valid,test)
     
     #print(scaled_train)
     model = FeedForward_Insurability()
@@ -249,32 +227,7 @@ def classify_mnist():
     test = read_mnist('mnist_test.csv')
 
 
-    X = [x[1] for x in train]
-    X_test = [x[1] for x in test]
-    X_valid = [x[1] for x in valid]
-    y = [float(x[0][0]) for x in train]
-    
-    Y_test = [float(x[0][0]) for  x in test]
-    Y_valid = [float(x[0][0]) for x in valid]
-    
-    
-    sc = MinMaxScaler()
-    X = sc.fit_transform(X)
-    X_test = sc.fit_transform(X_test)
-    X_valid = sc.fit_transform(X_valid)
-    X = torch.tensor(X, dtype=torch.float32, requires_grad=True)
-    print("x features: ", len(X[0]))
-    X_test = torch.tensor(X_test, dtype=torch.float32, requires_grad=True)
-    X_valid = torch.tensor(X_valid, dtype=torch.float32, requires_grad=True)
-
-    y = torch.tensor(y, dtype=torch.float32).reshape(-1, 1)
-    Y_valid = torch.tensor(Y_valid, dtype=torch.float32).reshape(-1, 1)
-    ohe = OneHotEncoder(handle_unknown='ignore', sparse_output=False).fit(y)
-    y = ohe.transform(y)
-    print(y)
-    Y_valid = ohe.transform(Y_valid)
-    y = torch.tensor(y, dtype=torch.float32, requires_grad=True)
-    Y_valid = torch.tensor(Y_valid, dtype=torch.float32, requires_grad=True)
+    X, X_test, X_valid, y, Y_test, Y_valid = format(train,valid,test)
     #show_mnist('mnist_test.csv','pixels')
     
     # insert code to train a neural network with an architecture of your choice
@@ -283,11 +236,11 @@ def classify_mnist():
     model = FeedForward_Mnist()
     #model.train()
     loss = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
     # keep track of learning curves for training and validation data sets
     train_loss, train_accuracy, val_loss, val_accuracy = [], [], [], []
     
-    n_epochs = 20
+    n_epochs = 8
     
     for epoch in range(n_epochs):
         model.train()
@@ -377,6 +330,102 @@ def classify_mnist_reg():
     valid = read_mnist('mnist_valid.csv')
     test = read_mnist('mnist_test.csv')
     #show_mnist('mnist_test.csv','pixels')
+
+    X, X_test, X_valid, y, Y_test, Y_valid = format(train,valid,test)
+    #show_mnist('mnist_test.csv','pixels')
+    
+    # insert code to train a neural network with an architecture of your choice
+    # (a FFNN is fine) and produce evaluation metrics
+
+    model = FeedForward_Mnist()
+    #model.train()
+    loss = nn.CrossEntropyLoss()
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.01, weight_decay=0.001)
+    # keep track of learning curves for training and validation data sets
+    train_loss, train_accuracy, val_loss, val_accuracy = [], [], [], []
+    
+    n_epochs = 8
+    
+    for epoch in range(n_epochs):
+        model.train()
+        total_loss, total_correct, total_samples = 0, 0, 0
+        # Train network one observation at a time
+        for i in range(0,len(X)):
+            Xbatch = X[i]
+            y_pred = model(Xbatch)
+            #y_pred = torch.tensor(softmax(y_pred))
+            ybatch = y[i]
+            l = loss(y_pred, ybatch)
+            #print(l)
+            optimizer.zero_grad()
+            l.backward()
+            optimizer.step()
+            #print(list(model.parameters()))
+            
+            # determine training loss
+            total_loss += l.item()
+            # determine training accuracy
+            total_correct += (torch.argmax(y_pred) == torch.argmax(ybatch)).item()
+            total_samples += 1
+
+         # Run with validation data (TODO: should we softmax)
+        model.eval()
+        with torch.no_grad():
+            pred = model(X_valid)
+            val_loss.append(loss(pred, Y_valid).item())
+            val_accuracy.append((torch.argmax(Y_valid, dim=1) == torch.argmax(pred, dim=1)).sum().item() / pred.size(0))
+        
+        # populate training data arrays for learning functions
+        train_loss.append(total_loss / len(X))
+        train_accuracy.append(total_correct / total_samples)
+        print("finished epoch: ", epoch, "loss value: ", total_loss / len(X), " Percentage Correct: ", total_correct / total_samples)  
+    
+    # determine accuracy
+    n = len(X_test)
+    correct = 0
+    predicted = [0] * n # 1D array with the prediction for each example
+    for i in range(n):
+        y_pred = model(X_test[i])
+        y_pred = softmax(y_pred)
+        y_val_predicted = y_pred.index(max(y_pred))
+        y_act = Y_test[i]
+        predicted[i] = y_val_predicted
+        if y_val_predicted == y_act:
+            correct += 1
+    proportion = correct/n
+    print("% correct: ", proportion)
+
+    actual = Y_test
+
+    # generate and display confusion matrix
+    confusion_matrix = metrics.confusion_matrix(actual, predicted)
+    cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix = confusion_matrix, display_labels = [0,1,2,3,4,5,6,7,8,9])
+    cm_display.plot()
+    title = "% Correct: " + str(proportion)
+    plt.title(title)
+    plt.show()
+
+    # generate learning curves
+    plt.plot(train_loss)
+    plt.ylabel("Loss")
+    plt.xlabel("Epoch")
+    plt.title("Loss VS. Epochs Training")
+    plt.show()
+    plt.plot(train_accuracy)
+    plt.title("Accuracy VS. Epochs Training")
+    plt.ylabel("Accuracy")
+    plt.xlabel("Epoch")
+    plt.show()    
+    plt.plot(val_loss)
+    plt.ylabel("Loss")
+    plt.xlabel("Epoch")
+    plt.title("Loss VS. Epochs Validation")
+    plt.show()
+    plt.plot(val_accuracy)
+    plt.title("Accuracy VS. Epochs Validation")
+    plt.ylabel("Accuracy")
+    plt.xlabel("Epoch")
+    plt.show()    
     
     # add a regularizer of your choice to classify_mnist()
     
@@ -398,11 +447,42 @@ def softmax(outputLayer):
      for features in outputLayer:
         probabilities.append(math.exp(features) / baseSum)
      return probabilities
+
+def format(train,valid,test):
+    X = [x[1] for x in train]
+    X_test = [x[1] for x in test]
+    X_valid = [x[1] for x in valid]
+    y = [float(x[0][0]) for x in train]
+    
+    Y_test = [float(x[0][0]) for  x in test]
+    Y_valid = [float(x[0][0]) for x in valid]
+    
+    
+    sc = MinMaxScaler()
+    X = sc.fit_transform(X)
+    X_test = sc.fit_transform(X_test)
+    X_valid = sc.fit_transform(X_valid)
+    X = torch.tensor(X, dtype=torch.float32, requires_grad=True)
+    print("x features: ", len(X[0]))
+    X_test = torch.tensor(X_test, dtype=torch.float32, requires_grad=True)
+    X_valid = torch.tensor(X_valid, dtype=torch.float32, requires_grad=True)
+
+    y = torch.tensor(y, dtype=torch.float32).reshape(-1, 1)
+    Y_valid = torch.tensor(Y_valid, dtype=torch.float32).reshape(-1, 1)
+    ohe = OneHotEncoder(handle_unknown='ignore', sparse_output=False).fit(y)
+    y = ohe.transform(y)
+    print(y)
+    Y_valid = ohe.transform(Y_valid)
+    y = torch.tensor(y, dtype=torch.float32, requires_grad=True)
+    Y_valid = torch.tensor(Y_valid, dtype=torch.float32, requires_grad=True)
+
+    return X, X_test, X_valid, y, Y_test, Y_valid
+
     
 def main():
     #classify_insurability()
     classify_mnist()
-    #classify_mnist_reg()
+    classify_mnist_reg()
     #classify_insurability_manual()
     
 if __name__ == "__main__":
