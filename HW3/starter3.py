@@ -181,10 +181,11 @@ def classify_insurability():
     actual = Y_test
 
     # generate and display confusion matrix
+    f1 = metrics.f1_score(actual,predicted, average = "weighted")
     confusion_matrix = metrics.confusion_matrix(actual, predicted)
     cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix = confusion_matrix, display_labels = ["Bad", "Neutral", "Good"])
     cm_display.plot()
-    title = "% Correct: " + str(proportion)
+    title = "% Correct: " + str(proportion) + " | F1 Score: " + str(f1)
     plt.title(title)
     plt.show()
 
@@ -294,10 +295,11 @@ def classify_mnist():
     actual = Y_test
 
     # generate and display confusion matrix
+    f1 = metrics.f1_score(actual,predicted, average = "weighted")
     confusion_matrix = metrics.confusion_matrix(actual, predicted)
     cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix = confusion_matrix, display_labels = [0,1,2,3,4,5,6,7,8,9])
     cm_display.plot()
-    title = "% Correct: " + str(proportion)
+    title = "% Correct: " + str(proportion) + " | F1 Score: " + str(f1)
     plt.title(title)
     plt.show()
 
@@ -398,10 +400,11 @@ def classify_mnist_reg():
     actual = Y_test
 
     # generate and display confusion matrix
+    f1 = metrics.f1_score(actual,predicted, average = "weighted")
     confusion_matrix = metrics.confusion_matrix(actual, predicted)
     cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix = confusion_matrix, display_labels = [0,1,2,3,4,5,6,7,8,9])
     cm_display.plot()
-    title = "% Correct: " + str(proportion)
+    title = "% Correct: " + str(proportion) + " | F1 Score: " + str(f1)
     plt.title(title)
     plt.show()
 
@@ -480,9 +483,9 @@ def format(train,valid,test):
 
     
 def main():
-    #classify_insurability()
-    classify_mnist()
-    classify_mnist_reg()
+    classify_insurability()
+    #classify_mnist()
+    #classify_mnist_reg()
     #classify_insurability_manual()
     
 if __name__ == "__main__":
