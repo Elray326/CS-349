@@ -119,31 +119,28 @@ def classify_insurability():
     
     X, X_test, X_valid, y, Y_test, Y_valid = format(train,valid,test)
     
-    #print(scaled_train)
+    # initialize model, loss, and optimizer
     model = FeedForward_Insurability()
-    #model.train()
     loss = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.02)
 
     # keep track of learning curves for training and validation data sets
     train_loss, train_accuracy, val_loss, val_accuracy = [], [], [], []
     n_epochs = 20
     
     for epoch in range(n_epochs):
+        # set model to training mode
         model.train()
         total_loss, total_correct, total_samples = 0, 0, 0
         # Train network one observation at a time
         for i in range(0,len(X)):
             Xbatch = X[i]
             y_pred = model(Xbatch)
-            #y_pred = torch.tensor(softmax(y_pred))
             ybatch = y[i]
             l = loss(y_pred, ybatch)
-            #print(l)
             optimizer.zero_grad()
             l.backward()
             optimizer.step()
-            #print(list(model.parameters()))
             
             # determine training loss
             total_loss += l.item()
@@ -151,7 +148,7 @@ def classify_insurability():
             total_correct += (torch.argmax(y_pred) == torch.argmax(ybatch)).item()
             total_samples += 1
 
-        # Run with validation data (TODO: should we softmax)
+        # Run with validation data in evaluation mode
         model.eval()
         with torch.no_grad():
             pred = model(X_valid)
@@ -163,13 +160,13 @@ def classify_insurability():
         train_accuracy.append(total_correct / total_samples)
         print("finished epoch: ", epoch, "loss value: ", total_loss / len(X), " Percentage Correct: ", total_correct / total_samples)  
 
-    # determine accuracy
+    # determine accuracy on test data
     n = len(X_test)
     correct = 0
     predicted = [0] * n # 1D array with the prediction for each example
     for i in range(n):
         y_pred = model(X_test[i])
-        y_pred = softmax(y_pred)
+        y_pred = softmax(y_pred) # softmax results for test data
         y_val_predicted = y_pred.index(max(y_pred))
         y_act = Y_test[i]
         predicted[i] = y_val_predicted
@@ -180,7 +177,7 @@ def classify_insurability():
 
     actual = Y_test
 
-    # generate and display confusion matrix
+    # generate and display confusion matrix and F1 score
     f1 = metrics.f1_score(actual,predicted, average = "weighted")
     confusion_matrix = metrics.confusion_matrix(actual, predicted)
     cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix = confusion_matrix, display_labels = ["Bad", "Neutral", "Good"])
@@ -210,16 +207,6 @@ def classify_insurability():
     plt.ylabel("Accuracy")
     plt.xlabel("Epoch")
     plt.show()    
-    #print(y_pred)
-    
-    #print(l)
-    #print(y_pred)
-    
-    #print(ff.forward(scaled_train))
-    
-
-
-    # insert code to train simple FFNN and produce evaluation metrics
     
 def classify_mnist():
     
