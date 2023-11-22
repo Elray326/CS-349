@@ -27,17 +27,36 @@ class FeedForward_Insurability(nn.Module):
     #x = torch.tensor(x, dtype=torch.float32)
     return x
 class FeedForward_Mnist(nn.Module):
-  def __init__(self):
-    super().__init__()
-    self.hidden = nn.Linear(784, 24)
-    self.act = nn.ReLU()
-    self.output = nn.Linear(24, 10)  
-
-  def forward(self, x):
-    x = self.act(self.hidden(x))
-    x = self.output(x)
-    #x = torch.tensor(x, dtype=torch.float32)
-    return x
+    def __init__(self):
+        super().__init__()
+        self.hidden1 = nn.Linear(784, 24)
+        self.act1 = nn.ReLU()
+        self.hidden2 = nn.Linear(24, 24)
+        self.act2 = nn.ReLU()
+        self.output = nn.Linear(24, 10)  
+    
+    def forward(self, x):
+        # Forward pass through the network
+        x = self.act1(self.hidden1(x))
+        x = self.act2(self.hidden2(x))
+        x = self.output(x)
+        return x
+    
+class FeedForward_Mnist_Reg(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.hidden1 = nn.Linear(784, 16)
+        self.act1 = nn.ReLU()
+        self.hidden2 = nn.Linear(16, 16)
+        self.act2 = nn.ReLU()
+        self.output = nn.Linear(16, 10)  
+    
+    def forward(self, x):
+        # Forward pass through the network
+        x = self.act1(self.hidden1(x))
+        x = self.act2(self.hidden2(x))
+        x = self.output(x)
+        return x
     
 
 def read_mnist(file_name):
@@ -216,19 +235,15 @@ def classify_mnist():
 
 
     X, X_test, X_valid, y, Y_test, Y_valid = format(train,valid,test)
-    #show_mnist('mnist_test.csv','pixels')
-    
-    # insert code to train a neural network with an architecture of your choice
-    # (a FFNN is fine) and produce evaluation metrics
 
+    # define model, loss, and optimizer
     model = FeedForward_Mnist()
-    #model.train()
     loss = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.02)
     # keep track of learning curves for training and validation data sets
     train_loss, train_accuracy, val_loss, val_accuracy = [], [], [], []
     
-    n_epochs = 8
+    n_epochs = 12
     
     for epoch in range(n_epochs):
         model.train()
@@ -237,14 +252,11 @@ def classify_mnist():
         for i in range(0,len(X)):
             Xbatch = X[i]
             y_pred = model(Xbatch)
-            #y_pred = torch.tensor(softmax(y_pred))
             ybatch = y[i]
             l = loss(y_pred, ybatch)
-            #print(l)
             optimizer.zero_grad()
             l.backward()
             optimizer.step()
-            #print(list(model.parameters()))
             
             # determine training loss
             total_loss += l.item()
@@ -252,7 +264,7 @@ def classify_mnist():
             total_correct += (torch.argmax(y_pred) == torch.argmax(ybatch)).item()
             total_samples += 1
 
-         # Run with validation data (TODO: should we softmax)
+        # Run with validation data
         model.eval()
         with torch.no_grad():
             pred = model(X_valid)
@@ -318,22 +330,17 @@ def classify_mnist_reg():
     train = read_mnist('mnist_train.csv')
     valid = read_mnist('mnist_valid.csv')
     test = read_mnist('mnist_test.csv')
-    #show_mnist('mnist_test.csv','pixels')
 
     X, X_test, X_valid, y, Y_test, Y_valid = format(train,valid,test)
-    #show_mnist('mnist_test.csv','pixels')
-    
-    # insert code to train a neural network with an architecture of your choice
-    # (a FFNN is fine) and produce evaluation metrics
 
-    model = FeedForward_Mnist()
-    #model.train()
+    model = FeedForward_Mnist_Reg()
     loss = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.01, weight_decay=0.001)
+    # weight_decay is the regularizer
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.02, weight_decay=0.005)
     # keep track of learning curves for training and validation data sets
     train_loss, train_accuracy, val_loss, val_accuracy = [], [], [], []
     
-    n_epochs = 8
+    n_epochs = 12
     
     for epoch in range(n_epochs):
         model.train()
@@ -357,7 +364,7 @@ def classify_mnist_reg():
             total_correct += (torch.argmax(y_pred) == torch.argmax(ybatch)).item()
             total_samples += 1
 
-         # Run with validation data (TODO: should we softmax)
+         # Run with validation data
         model.eval()
         with torch.no_grad():
             pred = model(X_valid)
@@ -471,8 +478,8 @@ def format(train,valid,test):
     
 def main():
     classify_insurability()
-    #classify_mnist()
-    #classify_mnist_reg()
+    classify_mnist()
+    classify_mnist_reg()
     #classify_insurability_manual()
     
 if __name__ == "__main__":
