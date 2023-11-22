@@ -126,7 +126,7 @@ def classify_insurability():
 
     # keep track of learning curves for training and validation data sets
     train_loss, train_accuracy, val_loss, val_accuracy = [], [], [], []
-    n_epochs = 20
+    n_epochs = 30
     
     for epoch in range(n_epochs):
         # set model to training mode
@@ -477,5 +477,3 @@ def main():
     
 if __name__ == "__main__":
     main()
-
-
