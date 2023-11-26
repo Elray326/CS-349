@@ -3,10 +3,6 @@ import imdb
 import requests
 import re
 
-# creating an instance of the IMDB()
-ia = imdb.IMDb()
-
-
 # get_imdb_id() function from https://github.com/TobiasPankner/Letterboxd-to-IMDb/blob/master/letterboxd2imdb.py
 def get_imdb_id(letterboxd_uri):
     resp = requests.get(letterboxd_uri)
@@ -18,8 +14,7 @@ def get_imdb_id(letterboxd_uri):
     if not re_match:
         return None
 
-    return re_match[0]
-
+    return re_match[0][2:]
 
 # collects users letterboxd reviews and converts ratings to a 1-10 scale
 def getUserReviews(accountName):
@@ -51,6 +46,10 @@ def getUserReviews(accountName):
     return reviews
 
 
+
+# creating an instance of the IMDB()
+ia = imdb.IMDb()
+
 accountName = "nmcassa"
 revs = getUserReviews(accountName)
 nick = user.User(accountName)
@@ -68,4 +67,15 @@ for n, url in films_watched:
 
 letterboxd_uri = "https://letterboxd.com/film/" + letterboxd_url + "/"
 
-print(get_imdb_id(letterboxd_uri))
+imdbid = get_imdb_id(letterboxd_uri)
+
+imdb_movie = ia.get_movie(imdbid)
+
+
+
+# this is the list of all the attributes that we can get directly from the IMDbPY library
+print(list(imdb_movie.data.keys()))
+# ['localized title', 'cast', 'genres', 'runtimes', 'countries', 'country codes', 'language codes', 'color info', 'aspect ratio', 'sound mix', 'certificates', 'original air date', 'rating', 'votes', 'cover url', 'imdbID', 'videos', 'plot outline', 'languages', 'title', 'year', 'kind', 'original title', 'director', 'writer', 'producer', 'composer', 'cinematographer', 'editor', 'casting director', 'production design', 'costume designer', 'make up', 'assistant director', 'art department', 'sound crew', 'special effects', 'visual effects', 'stunt performer', 'camera and electrical department', 'casting department', 'costume department', 'location management', 'transportation department', 'miscellaneous crew', 'akas', 'production companies', 'distributors', 'special effects companies', 'other companies', 'plot', 'synopsis']
+
+# for example
+print(imdb_movie["genres"])
