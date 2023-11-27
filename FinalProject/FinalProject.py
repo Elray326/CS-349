@@ -24,10 +24,9 @@ def read_user(accountName):
             userRating = [movie["userLetterboxdReview"]]
             features = [
                 movie["localizedTitle"],
-                movie["topThreeActors"],
-                movie["genres"],
-                movie["runtimes"],
-                movie["colorInfo"],
+                movie["runtimes"][0],
+                movie["genres"][0],
+                movie["colorInfo"][0],
                 movie["rating"],
                 movie["year"],
                 movie.get("director", None),
@@ -36,9 +35,13 @@ def read_user(accountName):
                 movie.get("composer", None)
             ]
 
+            for a in movie["topThreeActors"]:
+                features.append(a)
+            
+
             data.append([userRating,features])
         
     return data
 
-print(read_user("schaffrillas"))
+print(read_user("laurenashe"))
         
