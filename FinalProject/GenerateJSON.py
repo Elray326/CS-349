@@ -100,7 +100,6 @@ def createUserJSON(accountName):
             movieInfo["colorInfo"] = imdb_movie.data["color info"]
             movieInfo["rating"] = imdb_movie.data["rating"]
             movieInfo["year"] = imdb_movie.data["year"]
-            movieInfo["rating"] = imdb_movie.data["rating"]
             movieInfo["director"] = imdb_movie.data["director"][0].get('name', '')
             movieInfo["writer"] = imdb_movie.data["writer"][0].get('name', '')
             movieInfo["producer"] = imdb_movie.data["producer"][0].get('name', '')
@@ -138,5 +137,5 @@ def save_user(data, user):
     with open("users/" + user + ".json", 'w') as file:
         json.dump(data, file)
 
-userToGenerate = input("Enter letterboxd username: ")
-createUserJSON(userToGenerate)
+#userToGenerate = input("Enter letterboxd username: ")
+#createUserJSON(userToGenerate)

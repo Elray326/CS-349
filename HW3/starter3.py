@@ -478,8 +478,8 @@ def format(train,valid,test):
     
 def main():
     classify_insurability()
-    classify_mnist()
-    classify_mnist_reg()
+    #classify_mnist()
+    #classify_mnist_reg()
     #classify_insurability_manual()
     
 if __name__ == "__main__":
