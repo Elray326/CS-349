@@ -23,7 +23,7 @@ def get_imdb_id(letterboxd_uri):
 def getUserReviews(accountName):
     reviews = dict()
     account = user.User(accountName)
-    initialReviews = user.user_reviews(account)
+    initialReviews = user_reviews_fixed(account)
     for review in initialReviews:
         rating = review['rating'].strip()
         if rating == "½":
@@ -47,6 +47,38 @@ def getUserReviews(accountName):
         else:
             reviews[review['movie']] = 10
     return reviews
+
+#gives reviews that the user selected has made, fixed by Spencer to work on every page
+def user_reviews_fixed(user) -> list:
+    #returns all movies
+    prev = count = 0
+    curr = 1
+    review_list = []
+
+    while prev != curr:
+        count += 1
+        print("[GenerateJSON] Parsing Review Page " + str(count) + ". Review List Length: " + str(len(review_list)))
+        curr 
+        prev = len(review_list)
+        page = user.get_parsed_page("https://letterboxd.com/" + user.username + "/films/reviews/page/" + str(count) + "/")
+
+        data = page.find_all("div", {"class": ["film-detail-content"], })
+
+        for item in data:
+            curr = {}
+
+            # Ensure movie has been rated
+            if item.find("span", {"class": ["rating"], }) != None:
+                curr['movie'] = item.find("a").text #movie title
+                curr['rating'] = item.find("span", {"class": ["rating"], }).text #movie rating
+                curr['date'] = item.find("span", {"class": ["_nobr"], }).text #rating date
+                curr['review'] = item.find("div", {"class": ["body-text"], }).findChildren()[0].text #review
+
+                review_list.append(curr)
+
+        curr = len(review_list)
+
+    return review_list
 
 # Gets the IMDb movie details for movies the user has reviewed on letterboxd and creates CSV details
 def createUserJSON(accountName):
@@ -100,9 +132,12 @@ def createUserJSON(accountName):
             movieInfo["colorInfo"] = imdb_movie.data["color info"]
             movieInfo["rating"] = imdb_movie.data["rating"]
             movieInfo["year"] = imdb_movie.data["year"]
-            movieInfo["director"] = imdb_movie.data["director"][0].get('name', '')
-            movieInfo["writer"] = imdb_movie.data["writer"][0].get('name', '')
-            movieInfo["producer"] = imdb_movie.data["producer"][0].get('name', '')
+            if "director" in imdb_movie.data:
+                movieInfo["director"] = imdb_movie.data["director"][0].get('name', '')
+            if "writer" in imdb_movie.data:
+                movieInfo["writer"] = imdb_movie.data["writer"][0].get('name', '')
+            if "producer" in imdb_movie.data:
+                movieInfo["producer"] = imdb_movie.data["producer"][0].get('name', '')
             if "composer" in imdb_movie.data:
                 movieInfo["composer"] = imdb_movie.data["composer"][0].get('name', '')
 
