@@ -121,35 +121,38 @@ def createUserJSON(accountName):
             userMovieDict[letterboxd_url] = currentMovie
             print("[GenerateJSON] " + letterboxd_url + " already added to movies.json")
         else:
-            imdbid = get_imdb_id(letterboxd_uri)
-            imdb_movie = ia.get_movie(imdbid)
-            # pick attributes to add to movie store
-            movieInfo = dict()
-            movieInfo["localizedTitle"] = imdb_movie.data["localized title"]
-            movieInfo["topThreeActors"] = [imdb_movie.data["cast"][0].get('name', ''), imdb_movie.data["cast"][1].get('name', ''), imdb_movie.data["cast"][2].get('name', '')]
-            movieInfo["genres"] = imdb_movie.data["genres"]
-            movieInfo["runtimes"] = imdb_movie.data["runtimes"]
-            movieInfo["colorInfo"] = imdb_movie.data["color info"]
-            movieInfo["rating"] = imdb_movie.data["rating"]
-            movieInfo["year"] = imdb_movie.data["year"]
-            if "director" in imdb_movie.data:
-                movieInfo["director"] = imdb_movie.data["director"][0].get('name', '')
-            if "writer" in imdb_movie.data:
-                movieInfo["writer"] = imdb_movie.data["writer"][0].get('name', '')
-            if "producer" in imdb_movie.data:
-                movieInfo["producer"] = imdb_movie.data["producer"][0].get('name', '')
-            if "composer" in imdb_movie.data:
-                movieInfo["composer"] = imdb_movie.data["composer"][0].get('name', '')
+            try:
+                imdbid = get_imdb_id(letterboxd_uri)
+                imdb_movie = ia.get_movie(imdbid)
+                # pick attributes to add to movie store
+                movieInfo = dict()
+                movieInfo["localizedTitle"] = imdb_movie.data["localized title"]
+                movieInfo["topThreeActors"] = [imdb_movie.data["cast"][0].get('name', ''), imdb_movie.data["cast"][1].get('name', ''), imdb_movie.data["cast"][2].get('name', '')]
+                movieInfo["genres"] = imdb_movie.data["genres"]
+                movieInfo["runtimes"] = imdb_movie.data["runtimes"]
+                movieInfo["colorInfo"] = imdb_movie.data["color info"]
+                movieInfo["rating"] = imdb_movie.data["rating"]
+                movieInfo["year"] = imdb_movie.data["year"]
+                if "director" in imdb_movie.data:
+                    movieInfo["director"] = imdb_movie.data["director"][0].get('name', '')
+                if "writer" in imdb_movie.data:
+                    movieInfo["writer"] = imdb_movie.data["writer"][0].get('name', '')
+                if "producer" in imdb_movie.data:
+                    movieInfo["producer"] = imdb_movie.data["producer"][0].get('name', '')
+                if "composer" in imdb_movie.data:
+                    movieInfo["composer"] = imdb_movie.data["composer"][0].get('name', '')
 
-            # add movie to storedMovies dict
-            storedMovies[letterboxd_url] = movieInfo
-            
-            # copy movie info and add it to user dict
-            movieInfoUser = copy.deepcopy(movieInfo)
-            movieInfoUser["userLetterboxdReview"] = revs[movies[i]]
-            userMovieDict[letterboxd_url] = movieInfoUser
-            save_movies(storedMovies)
-            print("[GenerateJSON] Added " + letterboxd_url + " to movies.json")
+                # add movie to storedMovies dict
+                storedMovies[letterboxd_url] = movieInfo
+                
+                # copy movie info and add it to user dict
+                movieInfoUser = copy.deepcopy(movieInfo)
+                movieInfoUser["userLetterboxdReview"] = revs[movies[i]]
+                userMovieDict[letterboxd_url] = movieInfoUser
+                save_movies(storedMovies)
+                print("[GenerateJSON] Added " + letterboxd_url + " to movies.json")
+            except:
+                print("[GenerateJSON] Error: Could not fetch information for movie " + letterboxd_uri)
 
     # create userJson
     save_user(userMovieDict, accountName)
