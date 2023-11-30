@@ -178,11 +178,9 @@ def run_nn():
     actual = [0] * n
     for i in range(n):
         y_pred = model(x_test[i])
-        y_pred = assign_rating(y_pred)
-        y_act = assign_rating(y_test[i])
-        predicted[i] = y_pred
-        actual[i] = y_act
-        if (torch.argmax(y_pred) == torch.argmax(y_act)).item():
+        predicted[i] = torch.argmax(y_pred).item()
+        actual[i] = torch.argmax(y_test[i]).item()
+        if (torch.argmax(y_pred) == torch.argmax(y_test[i])).item():
             correct += 1
     proportion = correct/n
     print("% correct: ", proportion, n)  
@@ -234,6 +232,6 @@ def format_for_collaborative_filtering(accountName):
     
     return data
 
-format_for_collaborative_filtering(accountName = "nmcassa")
+#format_for_collaborative_filtering(accountName = "nmcassa")
 
-#run_nn()
+run_nn()
