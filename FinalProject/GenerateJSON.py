@@ -4,6 +4,7 @@ import requests
 import re
 import json
 import copy
+import time
 
 # Spencer Rothfleisch, Louie Shapiro, Max Ward - CS 349
 # get_imdb_id() function from https://github.com/TobiasPankner/Letterboxd-to-IMDb/blob/master/letterboxd2imdb.py
@@ -82,6 +83,7 @@ def user_reviews_fixed(user) -> list:
 
 # Gets the IMDb movie details for movies the user has reviewed on letterboxd and creates CSV details
 def createUserJSON(accountName):
+    start = time.time()
     print("[GenerateJSON] Creating CSV for Letterboxd account " + accountName)
     # creating an instance of the IMDB()
     ia = Cinemagoer()
@@ -155,10 +157,10 @@ def createUserJSON(accountName):
                 print("[GenerateJSON] Error: Could not fetch information for movie " + letterboxd_uri)
 
     # create userJson
+    end = time.time()
+    timeElapsed = (end - start) / 60
     save_user(userMovieDict, accountName)
-    print("[GenerateJSON] Created " + accountName + ".json")
-    # this is the list of all the attributes that we can get directly from the IMDbPY library
-    # ['localized title', 'cast', 'genres', 'runtimes', 'countries', 'country codes', 'language codes', 'color info', 'aspect ratio', 'sound mix', 'certificates', 'original air date', 'rating', 'votes', 'cover url', 'imdbID', 'videos', 'plot outline', 'languages', 'title', 'year', 'kind', 'original title', 'director', 'writer', 'producer', 'composer', 'cinematographer', 'editor', 'casting director', 'production design', 'costume designer', 'make up', 'assistant director', 'art department', 'sound crew', 'special effects', 'visual effects', 'stunt performer', 'camera and electrical department', 'casting department', 'costume department', 'location management', 'transportation department', 'miscellaneous crew', 'akas', 'production companies', 'distributors', 'special effects companies', 'other companies', 'plot', 'synopsis']
+    print("[GenerateJSON] Created " + accountName + ".json - Time elapsed: " + str(timeElapsed) + " minutes")
 
 # Function to load data from JSON file
 def load_movies():
