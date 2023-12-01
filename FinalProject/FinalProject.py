@@ -193,45 +193,43 @@ def run_nn():
     plt.title(title)
     plt.show()
 
-
-
-
-def format_for_collaborative_filtering(accountName):
+# use collaborative filtering to suggest movies to the user
+def collaborative_filtering(accountName):
     path = "users/"
-    
-    data = []
-    
-    movie_axis = []
+    accountPath = path + accountName + ".json"
+    userSimilarity = []
+    print("[FinalProject] Determining similarity for user " + accountName)
+    # creates a json file for the user if it doesn't exist
+    if not os.path.isfile(accountPath):
+        createUserJSON(accountName) 
 
+    # populate user movie list
+    with open(accountPath, 'r') as file:
+        userMovies = json.load(file) # a list of all movies reviewed by user
+
+    # find similarity between users [userName, similarity score, number of reviews in common]
+    # The similarity is found by taking the difference in rating between each movie reviews in common, and then summing all the differences and dividing by the total number of reviews in common
     for filename in os.listdir(path): 
-        
         user_path = path + filename
-        
-        with open(user_path, 'r') as file:
-
-
-            movies = json.load(file) # a list of all movies reviewed by user
-            movie_list = list(movies)
-            
-            if len(movie_axis) == 0:
-                movie_axis.append(movie_list)
-
-            ratings = []
-
-            for movie_name in movie_list:
-                movie = movies[movie_name]
-                userRating = [movie["userLetterboxdReview"]]
-                ratings.append(userRating)
-
-
-            data.append(ratings)
-
-
-                
-            
-    
-    return data
+        # load user if it is not current account
+        if user_path != accountPath:
+            with open(user_path, 'r') as file:
+                similarityScore = 0
+                numberInCommon = 0
+                currMovies = json.load(file) # a list of all movies reviewed by user
+                # determine user similarity score
+                for movie in userMovies:
+                    if movie in currMovies:
+                        numberInCommon += 1
+                        similarityScore += abs(userMovies[movie]["userLetterboxdReview"] - currMovies[movie]["userLetterboxdReview"])
+                # add similarity to list
+                userSimilarity.append([user_path, similarityScore / numberInCommon, numberInCommon])
+                print("[FinalProject] Similarity determined for user " + filename)
+    # sort in ascending order
+    userSimilarity = sorted(userSimilarity, key=lambda x: x[1])
+    print(userSimilarity)
+    return userSimilarity
 
 #format_for_collaborative_filtering(accountName = "nmcassa")
-
-run_nn()
+collaborative_filtering("schaffrillas")
+#run_nn()
