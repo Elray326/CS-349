@@ -193,8 +193,33 @@ def run_nn():
     plt.title(title)
     plt.show()
 
+# returns Cosine Similarity between vectors a dn b
+def cosim(a,b, knn = True):
+    dist = 0
+    if knn:
+        dist = sum(int(x)*int(y) for x, y in zip(a, b)) /(vecSumSqrt(a) * vecSumSqrt(b))
+    else:
+        dist = sum(int(x)*int(y) for x, y in zip(a, b)) /(1+(vecSumSqrt(a) * vecSumSqrt(b)))
+
+    return(dist)
+
+# gets the square root of the sum of the vector
+def vecSumSqrt(vec):
+    dist = 0
+    for i in range(len(vec)):
+        dist += int(vec[i]) ** 2
+    return dist ** 0.5
+
+# returns Euclidean distance between vectors a dn b
+def euclidean(a,b):
+    dist = 0
+    for i in range(len(a)):
+        dist += (float(a[i]) - float(b[i])) ** 2
+    dist = dist ** 0.5
+    return(dist)
+
 # use collaborative filtering to suggest movies to the user
-def collaborative_filtering(accountName):
+def get_knn_collaborative_filtering(accountName, k, metric):
     path = "users/"
     accountPath = path + accountName + ".json"
     userSimilarity = []
@@ -207,28 +232,59 @@ def collaborative_filtering(accountName):
     with open(accountPath, 'r') as file:
         userMovies = json.load(file) # a list of all movies reviewed by user
 
-    # find similarity between users [userName, similarity score, number of reviews in common]
+    # find similarity between users [userName, manhattan distance, euclidean distance, cosine similarity, number of reviews in common]
     # The similarity is found by taking the difference in rating between each movie reviews in common, and then summing all the differences and dividing by the total number of reviews in common
     for filename in os.listdir(path): 
         user_path = path + filename
         # load user if it is not current account
         if user_path != accountPath:
             with open(user_path, 'r') as file:
-                similarityScore = 0
+                manhattanDistance = 0
+                userArray = []
+                otherUserArray = []
                 numberInCommon = 0
                 currMovies = json.load(file) # a list of all movies reviewed by user
-                # determine user similarity score
+                # determine manhattan distance and prep array for cosine similarity
                 for movie in userMovies:
                     if movie in currMovies:
                         numberInCommon += 1
-                        similarityScore += abs(userMovies[movie]["userLetterboxdReview"] - currMovies[movie]["userLetterboxdReview"])
+                        manhattanDistance += abs(userMovies[movie]["userLetterboxdReview"] - currMovies[movie]["userLetterboxdReview"])
+                        userArray.append(userMovies[movie]["userLetterboxdReview"])
+                        otherUserArray.append(currMovies[movie]["userLetterboxdReview"])
+                # normalize arrays for distance metrics
+                # userArray = np.array(userArray)
+                # otherUserArray = np.array(otherUserArray)
+
+                # userArray = userArray - userArray.mean()
+                # otherUserArray = otherUserArray - otherUserArray.mean()
+
+                # maxAbsUser = np.max(np.abs(userArray))
+                # maxAbsOther = np.max(np.abs(otherUserArray))
+
+                # userArray = userArray / maxAbsUser
+                # otherUserArray = otherUserArray / maxAbsOther
+                # calculate cosine similarity
+                cosineSimilarity = cosim(userArray, otherUserArray)
+                euclideanDistance = euclidean(userArray, otherUserArray)
                 # add similarity to list
-                userSimilarity.append([user_path, similarityScore / numberInCommon, numberInCommon])
+                userSimilarity.append([user_path, manhattanDistance / numberInCommon, euclideanDistance / numberInCommon, cosineSimilarity, numberInCommon])
                 print("[FinalProject] Similarity determined for user " + filename)
+
     # sort in ascending order
-    userSimilarity = sorted(userSimilarity, key=lambda x: x[1])
-    print(userSimilarity)
-    return userSimilarity
+    if metric == 1:
+        userSimilarity = sorted(userSimilarity, key=lambda x: x[1])
+    elif metric == 2:
+        userSimilarity = sorted(userSimilarity, key=lambda x: x[2])
+    else:
+        userSimilarity = sorted(userSimilarity, key=lambda x: x[3], reverse=True)
+
+    return userSimilarity[:k]
+
+def collaborative_filtering(accountName):
+    # get nearest neighbors (Metric: 1=manhattan, 2=euclidean, 3=cosine)
+    nearestNeighbors = get_knn_collaborative_filtering(accountName, k=4, metric=3)
+    print(nearestNeighbors)
+
 
 #format_for_collaborative_filtering(accountName = "nmcassa")
 collaborative_filtering("schaffrillas")
