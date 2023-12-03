@@ -12,6 +12,8 @@ import random
 import matplotlib.pyplot as plt
 from sklearn import metrics
 
+
+
 def assign_rating(y):
     if y > 7:
         return [2]
@@ -230,7 +232,10 @@ def get_knn_collaborative_filtering(accountName, k, metric):
 
     # populate user movie list
     with open(accountPath, 'r') as file:
-        userMovies = json.load(file) # a list of all movies reviewed by user
+        userMovies = json.load(file) # a list of all movies reviewed by main user
+
+    # a list of movies that have not been seen by the main user but have been seen by other users
+    unseen_movies = []
 
     # find similarity between users [userName, manhattan distance, euclidean distance, cosine similarity, number of reviews in common]
     # The similarity is found by taking the difference in rating between each movie reviews in common, and then summing all the differences and dividing by the total number of reviews in common
@@ -243,14 +248,28 @@ def get_knn_collaborative_filtering(accountName, k, metric):
                 userArray = []
                 otherUserArray = []
                 numberInCommon = 0
-                currMovies = json.load(file) # a list of all movies reviewed by user
+                currMovies = json.load(file) # a list of all movies reviewed by other user
                 # determine manhattan distance and prep array for cosine similarity
-                for movie in userMovies:
-                    if movie in currMovies:
+                for movie in currMovies:
+                    if movie in userMovies:
                         numberInCommon += 1
                         manhattanDistance += abs(userMovies[movie]["userLetterboxdReview"] - currMovies[movie]["userLetterboxdReview"])
                         userArray.append(userMovies[movie]["userLetterboxdReview"])
                         otherUserArray.append(currMovies[movie]["userLetterboxdReview"])
+                    else:
+                        unseen_movies.append(movie)
+
+
+                # decided to loop thru movies other people have seen so that we can create a list of movies the main user hasn't seen in order to pull from a list of possible recommendations
+
+                # for movie in userMovies:
+                #     if movie in currMovies:
+                #         numberInCommon += 1
+                #         manhattanDistance += abs(userMovies[movie]["userLetterboxdReview"] - currMovies[movie]["userLetterboxdReview"])
+                #         userArray.append(userMovies[movie]["userLetterboxdReview"])
+                #         otherUserArray.append(currMovies[movie]["userLetterboxdReview"])
+                
+                
                 # normalize arrays for distance metrics
                 # userArray = np.array(userArray)
                 # otherUserArray = np.array(otherUserArray)
@@ -278,12 +297,94 @@ def get_knn_collaborative_filtering(accountName, k, metric):
     else:
         userSimilarity = sorted(userSimilarity, key=lambda x: x[3], reverse=True)
 
-    return userSimilarity[:k]
+    return userSimilarity[:k], unseen_movies
+
+
+def recommend_N_movies(N, knn, unseen_movies, metric):
+    #(Metric: 1=manhattan, 2=euclidean, 3=cosine)
+    
+    i = 1
+
+    recommendations = {}
+
+    for movie in unseen_movies:
+        print(str(round(i/len(unseen_movies)*100, 2)) + "% Completed")
+        
+        recommendation_score = 0
+
+        num_scores = 0
+
+        for neighbor in knn: # loop through the K nearest neighbors
+            curr_user_path = neighbor[0]
+            similarity_score = neighbor[metric]
+            with open(curr_user_path, 'r') as file:
+
+                curr_user_movies = json.load(file) # a list of all movies reviewed by other user         
+
+                if movie in curr_user_movies:
+                    curr_user_rating = curr_user_movies[movie]["userLetterboxdReview"]
+                    
+                    if metric == 3:
+                        curr_score = similarity_score * curr_user_rating
+                    else:
+                        curr_score = similarity_score * (11 - curr_user_rating)
+
+                    recommendation_score += curr_score
+
+                    num_scores += 1
+        
+        if num_scores > 0:
+            recommendations[movie] = recommendation_score / num_scores
+    
+        i += 1
+
+
+    if metric == 3:
+        recommendations = sorted(recommendations.items(), key=lambda x:x[1], reverse=True)
+    else:
+        recommendations = sorted(recommendations.items(), key=lambda x:x[1])
+
+    return recommendations[:N]
+
+
+
+    # for neighbor in knn: # loop through the K nearest neighbors
+    #     curr_user_path = neighbor[0]
+    #     similarity_score = neighbor[metric]
+    #     with open(curr_user_path, 'r') as file:
+
+    #         curr_user_movies = json.load(file) # a list of all movies reviewed by other user
+
+    #         for movie in curr_user_movies: # loop through the movies they've seen
+    #             if movie in unseen_movies: # if the main user hasn't seen it
+    #                 curr_user_rating = curr_user_movies[movie]["userLetterboxdReview"]
+                    
+    #                 score = similarity_score * curr_user_rating
+    #             else: # if the main user has seen it, we don't want to recommend it to them
+    #                 continue
+
+            
+
+
+
+
+
+
+
 
 def collaborative_filtering(accountName):
     # get nearest neighbors (Metric: 1=manhattan, 2=euclidean, 3=cosine)
-    nearestNeighbors = get_knn_collaborative_filtering(accountName, k=4, metric=3)
+
+    metric = 2
+
+    nearestNeighbors,unseen_movies = get_knn_collaborative_filtering(accountName, k=5, metric=metric)
     print(nearestNeighbors)
+
+    N = 5
+
+    recommendations = recommend_N_movies(N, nearestNeighbors, unseen_movies, metric = metric)
+    print("Top " + str(N) + " recommended movies are: ")
+    print(recommendations)
 
 
 #format_for_collaborative_filtering(accountName = "nmcassa")
