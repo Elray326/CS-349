@@ -1,4 +1,4 @@
 cinemagoer==2023.5.1
 letterboxdpy==4.2
-requests==2.31.1
+requests==2.31.0
 beautifulsoup4==4.12.2

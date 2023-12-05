@@ -109,8 +109,8 @@ def read_user_numeric(accountName):
         
     return data, genreList
 
-def run_nn():
-    data, genreList = read_user_numeric("schaffrillas")
+def run_nn(username):
+    data, genreList = read_user_numeric(username)
     random.shuffle(data)
     genreList = [[x] for x in genreList]
     le = OrdinalEncoder()
@@ -302,36 +302,41 @@ def get_knn_collaborative_filtering(accountName, k, metric):
 
 def recommend_N_movies(N, knn, unseen_movies, metric):
     #(Metric: 1=manhattan, 2=euclidean, 3=cosine)
-    
+
+    # preload dictionaries with neccesary info from json to optimize runtime
+    neighborsMovies = dict()
+    neighborsMetrics = dict()
+    for n in knn:
+        with open(n[0], 'r') as file:
+            neighborsMovies[n[0]] = json.load(file)
+            neighborsMetrics[n[0]] = n[metric] 
+
     i = 1
 
     recommendations = {}
 
     for movie in unseen_movies:
-        print(str(round(i/len(unseen_movies)*100, 2)) + "% Completed")
+        #print(str(round(i/len(unseen_movies)*100, 2)) + "% Completed")
         
         recommendation_score = 0
 
         num_scores = 0
 
-        for neighbor in knn: # loop through the K nearest neighbors
-            curr_user_path = neighbor[0]
-            similarity_score = neighbor[metric]
-            with open(curr_user_path, 'r') as file:
+        for neighbor in neighborsMetrics: # loop through the K nearest neighbors
+            similarity_score = neighborsMetrics[neighbor]    
+            curr_user_movies = neighborsMovies[neighbor]      
 
-                curr_user_movies = json.load(file) # a list of all movies reviewed by other user         
+            if movie in curr_user_movies:
+                curr_user_rating = curr_user_movies[movie]["userLetterboxdReview"]
+                
+                if metric == 3:
+                    curr_score = similarity_score * curr_user_rating
+                else:
+                    curr_score = similarity_score * (11 - curr_user_rating)
 
-                if movie in curr_user_movies:
-                    curr_user_rating = curr_user_movies[movie]["userLetterboxdReview"]
-                    
-                    if metric == 3:
-                        curr_score = similarity_score * curr_user_rating
-                    else:
-                        curr_score = similarity_score * (11 - curr_user_rating)
+                recommendation_score += curr_score
 
-                    recommendation_score += curr_score
-
-                    num_scores += 1
+                num_scores += 1
         
         if num_scores > 0:
             recommendations[movie] = recommendation_score / num_scores
@@ -346,47 +351,27 @@ def recommend_N_movies(N, knn, unseen_movies, metric):
 
     return recommendations[:N]
 
-
-
-    # for neighbor in knn: # loop through the K nearest neighbors
-    #     curr_user_path = neighbor[0]
-    #     similarity_score = neighbor[metric]
-    #     with open(curr_user_path, 'r') as file:
-
-    #         curr_user_movies = json.load(file) # a list of all movies reviewed by other user
-
-    #         for movie in curr_user_movies: # loop through the movies they've seen
-    #             if movie in unseen_movies: # if the main user hasn't seen it
-    #                 curr_user_rating = curr_user_movies[movie]["userLetterboxdReview"]
-                    
-    #                 score = similarity_score * curr_user_rating
-    #             else: # if the main user has seen it, we don't want to recommend it to them
-    #                 continue
-
-            
-
-
-
-
-
-
-
-
+# Conduct collaborative filtering algorithm to recommend movies
 def collaborative_filtering(accountName):
     # get nearest neighbors (Metric: 1=manhattan, 2=euclidean, 3=cosine)
 
-    metric = 2
+    metric = 1
 
     nearestNeighbors,unseen_movies = get_knn_collaborative_filtering(accountName, k=5, metric=metric)
-    print(nearestNeighbors)
+    print("[FinalProject] Nearest Neighbors:", nearestNeighbors)
 
     N = 5
 
     recommendations = recommend_N_movies(N, nearestNeighbors, unseen_movies, metric = metric)
-    print("Top " + str(N) + " recommended movies are: ")
+    print("[FinalProject] Top " + str(N) + " recommended movies are: ")
     print(recommendations)
 
-
-#format_for_collaborative_filtering(accountName = "nmcassa")
-collaborative_filtering("schaffrillas")
-#run_nn()
+# runner
+username = input("[FinalProject] Please enter your Letterboxd username: ")
+selection = input("[FinalProject] Would you like to (1) get movie reccomendations through collaborative filtering or (2) train a neural network on your watched movies? ")
+if (selection == "1"):
+    collaborative_filtering(username)
+elif (selection == "2"):
+    run_nn(username)
+else:
+    print("[FinalProject] You did not enter (1) or (2)")
