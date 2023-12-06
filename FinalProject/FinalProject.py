@@ -4,26 +4,18 @@ from GenerateJSON import *
 import os
 import numpy as np
 import torch
-import torch.nn.functional as F
 import torch.nn as nn
+import torch.optim
+import torch.nn.functional as F
 from torch.autograd import Variable
-from sklearn.preprocessing import MinMaxScaler, OneHotEncoder, OrdinalEncoder
+from torch.utils.data import DataLoader, TensorDataset
+from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
+from sklearn.model_selection import train_test_split
 import random
 import matplotlib.pyplot as plt
 from sklearn import metrics
 
-
-
-def assign_rating(y):
-    if y > 7:
-        return [2]
-    if y < 4:
-        return [0]
-    return [1]
-
-
-        
-
+# Neural Network class
 class FeedForward_Letterboxd(nn.Module):
   def __init__(self, input_size):
     super().__init__()
@@ -38,6 +30,14 @@ class FeedForward_Letterboxd(nn.Module):
     x = self.softmax(x)
     #x = torch.tensor(x, dtype=torch.float32)
     return x
+  
+def assign_rating(y):
+    if y > 7:
+        return [2]
+    if y < 4:
+        return [0]
+    return [1]
+
 # ['localized title', 'cast', 'genres', 'runtimes', 'countries', 'country codes', 'language codes', 'color info', 'aspect ratio', 'sound mix', 'certificates', 'original air date', 'rating', 'votes', 'cover url', 'imdbID', 'videos', 'plot outline', 'languages', 'title', 'year', 'kind', 'original title', 'director', 'writer', 'producer', 'composer', 'cinematographer', 'editor', 'casting director', 'production design', 'costume designer', 'make up', 'assistant director', 'art department', 'sound crew', 'special effects', 'visual effects', 'stunt performer', 'camera and electrical department', 'casting department', 'costume department', 'location management', 'transportation department', 'miscellaneous crew', 'akas', 'production companies', 'distributors', 'special effects companies', 'other companies', 'plot', 'synopsis']
 
 def read_user(accountName):
@@ -131,72 +131,64 @@ def run_nn(username):
 
     # Concatenate genre encoding with other features
     X = np.array([np.concatenate((x, genreList[i])) for i, x in enumerate(X)])
+    Y = np.array(Y)
     input_size = X.shape[1]
 
-    #np.concatenate(X,genreList)
-    print(X)
-    print(Y)
-    x_train = X[:500]
-    x_test = X[500:]
-    y_train = Y[:500]
-    y_test = Y[500:]
+    # Splitting the dataset
+    x_train, x_test, y_train, y_test = train_test_split(X, Y, test_size=0.2, random_state=42) 
 
-    x_train = torch.tensor(x_train, dtype=torch.float32, requires_grad=True)
-    x_test = torch.tensor(x_test, dtype=torch.float32, requires_grad=True)
-    y_train = torch.tensor(y_train, dtype=torch.float32, requires_grad=True)
-    y_test = torch.tensor(y_test, dtype=torch.float32, requires_grad=True)
 
+    # PyTorch Data Loaders
+    batch_size = 2
+    train_dataset = TensorDataset(torch.tensor(x_train, dtype=torch.float32), torch.tensor(y_train, dtype=torch.float32))
+    test_dataset = TensorDataset(torch.tensor(x_test, dtype=torch.float32), torch.tensor(y_test, dtype=torch.float32))
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size)
+
+    # Model, Loss, and Optimizer
     model = FeedForward_Letterboxd(input_size)
     loss = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=0.025)
-    train_loss, train_accuracy = [],[]
 
+    # Training
     n_epochs = 15
-        
     for epoch in range(n_epochs):
-        # set model to training mode
         model.train()
         total_loss, total_correct, total_samples = 0, 0, 0
-        # Train network one observation at a time
-        for i in range(0,len(x_train)):
-            Xbatch = x_train[i]
+        for Xbatch, y_real in train_loader:
             y_pred = model(Xbatch)
-            y_real = y_train[i]
             l = loss(y_pred, y_real)
             optimizer.zero_grad()
             l.backward()
             optimizer.step()
-            
-            # determine training loss
+
             total_loss += l.item()
-            # determine training accuracy
-            total_correct += (torch.argmax(y_pred) == torch.argmax(y_real)).item()
-            total_samples += 1
+            total_correct += (torch.argmax(y_pred, dim=1) == torch.argmax(y_real, dim=1)).sum().item()
+            total_samples += y_real.size(0)
 
-        
-        # populate training data arrays for learning functions
-        train_loss.append(total_loss / len(X))
-        train_accuracy.append(total_correct / total_samples)
-        print("finished epoch: ", epoch, "loss value: ", total_loss / len(X), " Percentage Correct: ", total_correct / total_samples)
-    n = len(x_test)
-    correct = 0
-    predicted = [0] * n # 1D array with the prediction for each example
-    actual = [0] * n
-    for i in range(n):
-        y_pred = model(x_test[i])
-        predicted[i] = torch.argmax(y_pred).item()
-        actual[i] = torch.argmax(y_test[i]).item()
-        if (torch.argmax(y_pred) == torch.argmax(y_test[i])).item():
-            correct += 1
-    proportion = correct/n
-    print("% correct: ", proportion, n)  
+        print(f"Epoch: {epoch}, Loss: {total_loss / total_samples}, Accuracy: {total_correct / total_samples}")
 
-    f1 = metrics.f1_score(actual,predicted, average = "weighted")
+    # Testing
+    model.eval()
+    correct, total = 0, 0
+    predicted, actual = [], []
+    with torch.no_grad():
+        for Xbatch, y_real in test_loader:
+            y_pred = model(Xbatch)
+            predicted.extend(torch.argmax(y_pred, dim=1).tolist())
+            actual.extend(torch.argmax(y_real, dim=1).tolist())
+            correct += (torch.argmax(y_pred, dim=1) == torch.argmax(y_real, dim=1)).sum().item()
+            total += y_real.size(0)
+
+    proportion = correct / total
+    print(f"% correct: {proportion}")
+
+    # Metrics
+    f1 = metrics.f1_score(actual, predicted, average="weighted")
     confusion_matrix = metrics.confusion_matrix(actual, predicted)
-    cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix = confusion_matrix, display_labels = [0,1,2])
+    cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix=confusion_matrix, display_labels=[0, 1, 2])
     cm_display.plot()
-    title = "% Correct: " + str(proportion) + " | F1 Score: " + str(f1)
-    plt.title(title)
+    plt.title(f"% Correct: {proportion} | F1 Score: {f1}")
     plt.show()
 
 # returns Cosine Similarity between vectors a dn b
