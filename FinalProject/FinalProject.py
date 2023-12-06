@@ -220,7 +220,7 @@ def euclidean(a,b):
     return(dist)
 
 # use collaborative filtering to suggest movies to the user
-def get_knn_collaborative_filtering(accountName, k, metric):
+def get_knn_collaborative_filtering(accountName, k, metric, accuracyTestMode):
     path = "users/"
     accountPath = path + accountName + ".json"
     userSimilarity = []
@@ -235,6 +235,15 @@ def get_knn_collaborative_filtering(accountName, k, metric):
 
     # a list of movies that have not been seen by the main user but have been seen by other users
     unseen_movies = []
+    removed_movies = dict()
+
+    # to check accuracy remove 20% of movies
+    if accuracyTestMode == True:
+        numberToRemove = int(0.2 * len(userMovies))
+        moviesToRemove = random.sample(list(userMovies.keys()), numberToRemove)
+        removed_movies = {key: userMovies[key]["userLetterboxdReview"] for key in moviesToRemove}
+        for key in moviesToRemove:
+            del userMovies[key]
 
     # find similarity between users [userName, manhattan distance, euclidean distance, cosine similarity, number of reviews in common]
     # The similarity is found by taking the difference in rating between each movie reviews in common, and then summing all the differences and dividing by the total number of reviews in common
@@ -272,6 +281,9 @@ def get_knn_collaborative_filtering(accountName, k, metric):
                 # add similarity to list
                 userSimilarity.append([user_path, manhattanDistance / numberInCommon, euclideanDistance / numberInCommon, cosineSimilarity, numberInCommon])
                 print("[FinalProject] Similarity determined for user " + filename)
+    
+    # remove duplicates from unseen movies array 
+    unseen_movies = set(unseen_movies)
 
     # sort in ascending order
     if metric == 1:
@@ -281,10 +293,9 @@ def get_knn_collaborative_filtering(accountName, k, metric):
     else:
         userSimilarity = sorted(userSimilarity, key=lambda x: x[3], reverse=True)
 
-    return userSimilarity[:k], unseen_movies
+    return userSimilarity[:k], unseen_movies, removed_movies
 
-
-def recommend_N_movies(N, knn, unseen_movies, metric):
+def recommend_N_movies(N, knn, unseen_movies, metric, accuracyTestMode):
     #(Metric: 1=manhattan, 2=euclidean, 3=cosine)
 
     # preload dictionaries with neccesary info from json to optimize runtime
@@ -312,18 +323,27 @@ def recommend_N_movies(N, knn, unseen_movies, metric):
 
             if movie in curr_user_movies:
                 curr_user_rating = curr_user_movies[movie]["userLetterboxdReview"]
-                
-                if metric == 3:
+
+                # to test average score of all ratings without them being skewed for accuracy
+                if accuracyTestMode == True: 
+                    curr_score = curr_user_rating
+                elif metric == 3: #cosim
                     curr_score = similarity_score * curr_user_rating
-                else:
-                    curr_score = similarity_score * (11 - curr_user_rating)
+                else: #manhattan or euclidean
+                    weight = 1 / (similarity_score + 1)
+                    curr_score = weight * curr_user_rating
 
                 recommendation_score += curr_score
-
                 num_scores += 1
+
+                # add weight to number of reviews if not in accuracy mode
+                if accuracyTestMode == True or num_scores == 1:
+                    divideByConstant = num_scores
+                else:
+                    divideByConstant = num_scores - ((num_scores * 3) / 100)
         
         if num_scores > 0:
-            recommendations[movie] = recommendation_score / num_scores
+            recommendations[movie] = recommendation_score / divideByConstant
     
         i += 1
 
@@ -333,25 +353,55 @@ def recommend_N_movies(N, knn, unseen_movies, metric):
     else:
         recommendations = sorted(recommendations.items(), key=lambda x:x[1])
 
+    if accuracyTestMode:
+        return recommendations
     return recommendations[:N]
+
+# deduce accuracy of collaborative filtering
+def calculateAccuracyTestResults(removed_movies, recommendations):
+    recDict = dict(recommendations)
+    combined_ratings = {}
+    correct = 0
+    for movie, userRating in removed_movies.items():
+        if movie in recDict:
+            recRating = recDict[movie]
+            combined_ratings[movie] = (userRating, recRating)
+            if userRating > 7 and recRating > 7:
+                correct += 1
+            elif userRating <= 4 and recRating <= 4:
+                correct += 1
+            elif userRating > 4 and recRating > 4 and userRating <= 7 and recRating <= 7:
+                correct += 1
+            elif abs(userRating - recRating) <= 1:
+                correct += 1
+    
+    percentCorrect = correct / len(combined_ratings)
+    print("[FinalProject] % Correct: " + str(percentCorrect))
+    return percentCorrect, combined_ratings
 
 # Conduct collaborative filtering algorithm to recommend movies
 def collaborative_filtering(accountName):
-    # get nearest neighbors (Metric: 1=manhattan, 2=euclidean, 3=cosine)
-
+    # get nearest neighbors 
+    # (Metric: 1=manhattan, 2=euclidean, 3=cosine)
     metric = 3
+    accuracyTestMode = False
 
-    nearestNeighbors,unseen_movies = get_knn_collaborative_filtering(accountName, k=5, metric=metric)
+    nearestNeighbors, unseen_movies, removed_movies = get_knn_collaborative_filtering(accountName, k=10, metric=metric, accuracyTestMode=accuracyTestMode)
     print("[FinalProject] Nearest Neighbors:", nearestNeighbors)
 
     N = 10
 
-    recommendations = recommend_N_movies(N, nearestNeighbors, unseen_movies, metric = metric)
-    print("[FinalProject] Top " + str(N) + " recommended movies are: ")
-    movieCount = 0
-    for movie in recommendations:
-        movieCount += 1
-        print("#" + str(movieCount) + ": " + movie[0] + " | Score: " + str(movie[1]))
+    recommendations = recommend_N_movies(N, nearestNeighbors, unseen_movies, metric = metric, accuracyTestMode=accuracyTestMode)
+
+    if accuracyTestMode == True:
+        print("[FinalProject] Accuracy test for collaborative filtering enabled")
+        calculateAccuracyTestResults(removed_movies, recommendations)
+    else:
+        print("[FinalProject] Top " + str(N) + " recommended movies are: ")
+        movieCount = 0
+        for movie in recommendations:
+            movieCount += 1
+            print("#" + str(movieCount) + ": " + movie[0] + " | Score: " + str(movie[1]))
 
 # runner
 username = input("[FinalProject] Please enter your Letterboxd username: ")
