@@ -25,14 +25,12 @@ def assign_rating(y):
         
 
 class FeedForward_Letterboxd(nn.Module):
-  def __init__(self):
+  def __init__(self, input_size):
     super().__init__()
-    self.hidden = nn.Linear(4, 4)
+    self.hidden = nn.Linear(input_size, input_size)
     self.act = nn.ReLU()
-    self.output = nn.Linear(4, 3)
-    self.softmax = nn.Softmax()
-# activation function that converts linear results to probabilities
-  
+    self.output = nn.Linear(input_size, 3)
+    self.softmax = nn.Softmax()  
 
   def forward(self, x):
     x = self.act(self.hidden(x))
@@ -88,6 +86,7 @@ def read_user_numeric(accountName):
     path = "users/" + accountName + ".json" # user's json files are stored in the users directory
 
     if not os.path.isfile(path):
+        print("[FinalProject] " + path + " does not exist. Creating JSON...")
         createUserJSON(accountName) # creates a json file for the user if it doesn't exist
 
     with open(path, 'r') as file:
@@ -112,23 +111,28 @@ def read_user_numeric(accountName):
 def run_nn(username):
     data, genreList = read_user_numeric(username)
     random.shuffle(data)
-    genreList = [[x] for x in genreList]
-    le = OrdinalEncoder()
 
-    genreList = le.fit_transform(genreList)
+    # create one hot encoding for genres
+    ohe_genres = OneHotEncoder(sparse=False)
+    genreList = ohe_genres.fit_transform([[x] for x in genreList])
 
-    print(genreList)
-
-    for i in range(len(data)):
-        data[i][1].append(genreList[i][0])
-    print(data)
-
+    # Prepare X and Y
     X = [x[1] for x in data]
     Y = [assign_rating(x[0][0]) for x in data]
-    ohe = OneHotEncoder(handle_unknown='ignore', sparse_output=False).fit(Y)
-    Y = ohe.transform(Y)
+
+    # One-hot encode Y if it's categorical
+    ohe = OneHotEncoder(handle_unknown='ignore', sparse=False)
+    Y = np.array(Y).reshape(-1, 1)
+    Y = ohe.fit_transform(Y)
+
+    # Scale X
     sc = MinMaxScaler()
     X = sc.fit_transform(X)
+
+    # Concatenate genre encoding with other features
+    X = np.array([np.concatenate((x, genreList[i])) for i, x in enumerate(X)])
+    input_size = X.shape[1]
+
     #np.concatenate(X,genreList)
     print(X)
     print(Y)
@@ -142,9 +146,9 @@ def run_nn(username):
     y_train = torch.tensor(y_train, dtype=torch.float32, requires_grad=True)
     y_test = torch.tensor(y_test, dtype=torch.float32, requires_grad=True)
 
-    model = FeedForward_Letterboxd()
+    model = FeedForward_Letterboxd(input_size)
     loss = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.025)
     train_loss, train_accuracy = [],[]
 
     n_epochs = 15
@@ -210,6 +214,9 @@ def vecSumSqrt(vec):
     dist = 0
     for i in range(len(vec)):
         dist += int(vec[i]) ** 2
+    # in case the vector randomly adds up to 0
+    if dist == 0:
+        dist = 1
     return dist ** 0.5
 
 # returns Euclidean distance between vectors a dn b
@@ -259,32 +266,17 @@ def get_knn_collaborative_filtering(accountName, k, metric):
                     else:
                         unseen_movies.append(movie)
 
+                # Ensure that users have seen at least 10 movies in common
+                if numberInCommon < 10: 
+                    numberInCommon = 1
+                    manhattanDistance = 100000000
+                    euclideanDistance = 100000000
+                    cosineSimilarity = -1
+                else:
+                    # calculate cosine similarity and euclidean distance
+                    cosineSimilarity = cosim(userArray, otherUserArray)
+                    euclideanDistance = euclidean(userArray, otherUserArray)
 
-                # decided to loop thru movies other people have seen so that we can create a list of movies the main user hasn't seen in order to pull from a list of possible recommendations
-
-                # for movie in userMovies:
-                #     if movie in currMovies:
-                #         numberInCommon += 1
-                #         manhattanDistance += abs(userMovies[movie]["userLetterboxdReview"] - currMovies[movie]["userLetterboxdReview"])
-                #         userArray.append(userMovies[movie]["userLetterboxdReview"])
-                #         otherUserArray.append(currMovies[movie]["userLetterboxdReview"])
-                
-                
-                # normalize arrays for distance metrics
-                # userArray = np.array(userArray)
-                # otherUserArray = np.array(otherUserArray)
-
-                # userArray = userArray - userArray.mean()
-                # otherUserArray = otherUserArray - otherUserArray.mean()
-
-                # maxAbsUser = np.max(np.abs(userArray))
-                # maxAbsOther = np.max(np.abs(otherUserArray))
-
-                # userArray = userArray / maxAbsUser
-                # otherUserArray = otherUserArray / maxAbsOther
-                # calculate cosine similarity
-                cosineSimilarity = cosim(userArray, otherUserArray)
-                euclideanDistance = euclidean(userArray, otherUserArray)
                 # add similarity to list
                 userSimilarity.append([user_path, manhattanDistance / numberInCommon, euclideanDistance / numberInCommon, cosineSimilarity, numberInCommon])
                 print("[FinalProject] Similarity determined for user " + filename)
@@ -355,16 +347,19 @@ def recommend_N_movies(N, knn, unseen_movies, metric):
 def collaborative_filtering(accountName):
     # get nearest neighbors (Metric: 1=manhattan, 2=euclidean, 3=cosine)
 
-    metric = 1
+    metric = 3
 
     nearestNeighbors,unseen_movies = get_knn_collaborative_filtering(accountName, k=5, metric=metric)
     print("[FinalProject] Nearest Neighbors:", nearestNeighbors)
 
-    N = 5
+    N = 10
 
     recommendations = recommend_N_movies(N, nearestNeighbors, unseen_movies, metric = metric)
     print("[FinalProject] Top " + str(N) + " recommended movies are: ")
-    print(recommendations)
+    movieCount = 0
+    for movie in recommendations:
+        movieCount += 1
+        print("#" + str(movieCount) + ": " + movie[0] + " | Score: " + str(movie[1]))
 
 # runner
 username = input("[FinalProject] Please enter your Letterboxd username: ")
