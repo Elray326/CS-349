@@ -14,6 +14,8 @@ from sklearn.model_selection import train_test_split
 import random
 import matplotlib.pyplot as plt
 from sklearn import metrics
+from collections import Counter
+
 
 # Neural Network class
 class FeedForward_Letterboxd(nn.Module):
@@ -37,6 +39,19 @@ def assign_rating(y):
     if y < 4:
         return [0]
     return [1]
+def mean(arr):
+    return sum(arr) / len(arr)
+
+def mode(arr):
+    count = Counter(arr)
+    max_count = max(count.values())
+    mode = [k for k, v in count.items() if v == max_count]
+    return mode
+
+def calculate_variance(data):
+    mean_value = sum(data) / len(data)
+    variance = sum((x - mean_value) ** 2 for x in data) / len(data)
+    return variance
 
 # ['localized title', 'cast', 'genres', 'runtimes', 'countries', 'country codes', 'language codes', 'color info', 'aspect ratio', 'sound mix', 'certificates', 'original air date', 'rating', 'votes', 'cover url', 'imdbID', 'videos', 'plot outline', 'languages', 'title', 'year', 'kind', 'original title', 'director', 'writer', 'producer', 'composer', 'cinematographer', 'editor', 'casting director', 'production design', 'costume designer', 'make up', 'assistant director', 'art department', 'sound crew', 'special effects', 'visual effects', 'stunt performer', 'camera and electrical department', 'casting department', 'costume department', 'location management', 'transportation department', 'miscellaneous crew', 'akas', 'production companies', 'distributors', 'special effects companies', 'other companies', 'plot', 'synopsis']
 
@@ -110,8 +125,8 @@ def read_user_numeric(accountName):
 
 def run_nn(username):
     data, genreList = read_user_numeric(username)
-    random.shuffle(data)
 
+    ohe_rand = OneHotEncoder(sparse=False)
     # create one hot encoding for genres
     ohe_genres = OneHotEncoder(sparse=False)
     genreList = ohe_genres.fit_transform([[x] for x in genreList])
@@ -122,6 +137,7 @@ def run_nn(username):
 
     # One-hot encode Y if it's categorical
     ohe = OneHotEncoder(handle_unknown='ignore', sparse=False)
+    
     Y = np.array(Y).reshape(-1, 1)
     Y = ohe.fit_transform(Y)
 
@@ -170,25 +186,39 @@ def run_nn(username):
 
     # Testing
     model.eval()
-    correct, total = 0, 0
-    predicted, actual = [], []
+    correct, total, rcorrect = 0, 0, 0
+    predicted, actual, r_arr = [], [],[]
+    
     with torch.no_grad():
         for Xbatch, y_real in test_loader:
+            print(y_real)
             y_pred = model(Xbatch)
             predicted.extend(torch.argmax(y_pred, dim=1).tolist())
             actual.extend(torch.argmax(y_real, dim=1).tolist())
             correct += (torch.argmax(y_pred, dim=1) == torch.argmax(y_real, dim=1)).sum().item()
             total += y_real.size(0)
+    r_arr = [random.randint(0,2) for x in range(len(predicted))]
+    for i in range(len(r_arr)):
+        rcorrect += r_arr[i] == actual[i]
 
     proportion = correct / total
+    r_proportion = rcorrect / total
     print(f"% correct: {proportion}")
 
     # Metrics
     f1 = metrics.f1_score(actual, predicted, average="weighted")
+    rf1 = metrics.f1_score(actual, r_arr, average="weighted")
+    #rf1 = metrics.f1_score(actual, r_arr,average="weighted")
     confusion_matrix = metrics.confusion_matrix(actual, predicted)
-    cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix=confusion_matrix, display_labels=[0, 1, 2])
+    cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix=confusion_matrix, display_labels=["negative", "neutral", "positive"])
     cm_display.plot()
     plt.title(f"% Correct: {proportion} | F1 Score: {f1}")
+    plt.show()
+
+    confusion_matrix2 = metrics.confusion_matrix(actual, r_arr)
+    cm_display2 = metrics.ConfusionMatrixDisplay(confusion_matrix=confusion_matrix2, display_labels=["negative", "neutral", "positive"])
+    cm_display2.plot()
+    plt.title(f"% Correct: {r_proportion} | F1 Score: {rf1}")
     plt.show()
 
 # returns Cosine Similarity between vectors a dn b
