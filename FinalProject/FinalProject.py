@@ -358,14 +358,20 @@ def recommend_N_movies(N, knn, unseen_movies, metric, accuracyTestMode):
     return recommendations[:N]
 
 # deduce accuracy of collaborative filtering
-def calculateAccuracyTestResults(removed_movies, recommendations):
+def calculateAccuracyTestResults(removed_movies, recommendations, username, iterations):
     recDict = dict(recommendations)
     combined_ratings = {}
     correct = 0
+    userRatingArray = []
+    recRatingArray = []
     for movie, userRating in removed_movies.items():
         if movie in recDict:
             recRating = recDict[movie]
             combined_ratings[movie] = (userRating, recRating)
+            # Prepare arrays for histogram and MSE
+            userRatingArray.append(userRating)
+            recRatingArray.append(recRating)
+            # Determine if the reccomendation is accurate
             if userRating > 7 and recRating > 7:
                 correct += 1
             elif userRating <= 4 and recRating <= 4:
@@ -375,16 +381,29 @@ def calculateAccuracyTestResults(removed_movies, recommendations):
             elif abs(userRating - recRating) <= 1:
                 correct += 1
     
+    # Calculate accuracy
     percentCorrect = correct / len(combined_ratings)
     print("[FinalProject] % Correct: " + str(percentCorrect))
-    return percentCorrect, combined_ratings
+    # calculate MSE
+    userRatingArray = np.array(userRatingArray)
+    recRatingArray = np.array(recRatingArray)
+    mse = np.mean((userRatingArray - recRatingArray) ** 2)
+    print("[FinalProject] Mean Squared Error: " + str(mse))
+    # graph data
+    if int(iterations) == 1:
+        errors = userRatingArray - recRatingArray
+        plt.hist(errors, bins='auto')
+        plt.title("Error Histogram For " + username + " - MSE: " + str(mse) + " Accuracy: " + str(percentCorrect))
+        plt.xlabel("Prediction Error")
+        plt.ylabel("Frequency")
+        plt.show()
+
+    return percentCorrect, combined_ratings, mse
 
 # Conduct collaborative filtering algorithm to recommend movies
-def collaborative_filtering(accountName):
+def collaborative_filtering(accountName, accuracyTestMode, metric, iterations=1):
     # get nearest neighbors 
     # (Metric: 1=manhattan, 2=euclidean, 3=cosine)
-    metric = 3
-    accuracyTestMode = False
 
     nearestNeighbors, unseen_movies, removed_movies = get_knn_collaborative_filtering(accountName, k=10, metric=metric, accuracyTestMode=accuracyTestMode)
     print("[FinalProject] Nearest Neighbors:", nearestNeighbors)
@@ -392,22 +411,50 @@ def collaborative_filtering(accountName):
     N = 10
 
     recommendations = recommend_N_movies(N, nearestNeighbors, unseen_movies, metric = metric, accuracyTestMode=accuracyTestMode)
-
+    percentCorrect = 0
+    mse = 0
+    # determine which mode to run
     if accuracyTestMode == True:
         print("[FinalProject] Accuracy test for collaborative filtering enabled")
-        calculateAccuracyTestResults(removed_movies, recommendations)
+        percentCorrect, combined_ratings, mse = calculateAccuracyTestResults(removed_movies, recommendations, accountName, iterations)
     else:
         print("[FinalProject] Top " + str(N) + " recommended movies are: ")
         movieCount = 0
         for movie in recommendations:
             movieCount += 1
             print("#" + str(movieCount) + ": " + movie[0] + " | Score: " + str(movie[1]))
+    # average percent correct 
+    return percentCorrect, mse
 
 # runner
+accuracyTestMode = False
 username = input("[FinalProject] Please enter your Letterboxd username: ")
 selection = input("[FinalProject] Would you like to (1) get movie reccomendations through collaborative filtering or (2) train a neural network on your watched movies? ")
 if (selection == "1"):
-    collaborative_filtering(username)
+    if accuracyTestMode == False:
+        collaborative_filtering(username, accuracyTestMode, 3)
+    else:
+        percentArr = []
+        mseArr = []
+        innerIterations = input("[FinalProject] Please enter how many iterations for each distance metric to run: ")
+        for i in range(1, 4):
+            percentCorrect = 0
+            mse = 0
+            count = 0
+            for j in range(int(innerIterations)):
+                percentCorrectCurr, mseCurr = collaborative_filtering(username, accuracyTestMode, i, innerIterations)
+                percentCorrect += percentCorrectCurr
+                mse += mseCurr
+                count += 1
+            percentArr.append(percentCorrect / count)
+            mseArr.append(mse / count)
+        print("[FinalProject] Average percent correct for Manhattan Distance: " + str(percentArr[0]))
+        print("[FinalProject] Average MSE for Manhattan Distance: " + str(mseArr[0]))
+        print("[FinalProject] Average percent correct for Euclidean Distance: " + str(percentArr[1]))
+        print("[FinalProject] Average MSE for Euclidean Distance: " + str(mseArr[1]))
+        print("[FinalProject] Average percent correct for Cosine Similarity: " + str(percentArr[2]))
+        print("[FinalProject] Average MSE for Cosine Similarity: " + str(mseArr[2]))
+
 elif (selection == "2"):
     run_nn(username)
 else:
